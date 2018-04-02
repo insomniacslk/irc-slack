@@ -34,15 +34,11 @@ func main() {
 		sName = *serverName
 	}
 	localAddr := net.TCPAddr{Port: *port}
-	if *host == "" {
-		localAddr.IP = net.IPv4(127, 0, 0, 1)
-	} else {
-		ip := net.ParseIP(*host)
-		if ip == nil {
-			log.Fatal("Invalid IP address to listen on")
-		}
-		localAddr.IP = ip
+	ip := net.ParseIP(*host)
+	if ip == nil {
+		log.Fatal("Invalid IP address to listen on")
 	}
+	localAddr.IP = ip
 	log.Printf("Starting server on %v", localAddr.String())
 	server := Server{
 		LocalAddr: &localAddr,
