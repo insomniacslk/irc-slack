@@ -20,6 +20,7 @@ import (
 // https://api.slack.com/custom-integrations/legacy-tokens
 var (
 	port       = flag.Int("p", 6666, "Local port to listen on")
+	host       = flag.String("h", "127.0.0.1", "IP address to listen on")
 	serverName = flag.String("s", "", "IRC server name (i.e. the host name to send to clients)")
 )
 
@@ -32,8 +33,19 @@ func main() {
 	} else {
 		sName = *serverName
 	}
+	localAddr := net.TCPAddr{Port: *port}
+	if *host == "" {
+		localAddr.IP = net.IPv4(127, 0, 0, 1)
+	} else {
+		ip := net.ParseIP(*host)
+		if ip == nil {
+			log.Fatal("Invalid IP address to listen on")
+		}
+		localAddr.IP = ip
+	}
+	log.Printf("Starting server on %v", localAddr.String())
 	server := Server{
-		LocalAddr: &net.TCPAddr{IP: net.IPv4zero, Port: *port},
+		LocalAddr: &localAddr,
 		Name:      sName,
 	}
 	if err := server.Start(); err != nil {
