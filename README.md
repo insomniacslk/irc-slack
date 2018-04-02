@@ -13,6 +13,7 @@ The code quality is currently at the `works-for-me` level.
 ## How to use it
 
 ```
+go get ./...  # download the dependencies, currently just github.com/nlopes/slack
 go build
 ./irc-slack # by default on port 6666
 irssi
