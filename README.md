@@ -16,9 +16,13 @@ The code quality is currently at the `works-for-me` level.
 go get ./...  # download the dependencies, currently just github.com/nlopes/slack
 go build
 ./irc-slack # by default on port 6666
-irssi
-  /network add SlackYourTeamName
-  /server add -auto SlackYourTeamName localhost 6666 xoxp-<your-slack-token>
+```
+
+Then configure your IRC client to connect to localhost:6666 and use a Slack legacy token as password. Example for irssi:
+
+```
+/network add SlackYourTeamName
+/server add -auto SlackYourTeamName localhost 6666 xoxp-<your-slack-token>
 ```
 
 Get you Slack legacy token at https://api.slack.com/custom-integrations/legacy-tokens .
