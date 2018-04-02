@@ -59,8 +59,8 @@ func ExpandURLs(text string) string {
 		)
 		idx := strings.LastIndex(slackURL, "|")
 		if idx >= 0 {
-			slackMsg = slackURL[idx:]
-			slackURL = slackURL[:idx-1]
+			slackMsg = slackURL[idx+1:]
+			slackURL = slackURL[:idx]
 		}
 
 		u, err := url.Parse(slackURL)
