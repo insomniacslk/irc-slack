@@ -40,12 +40,13 @@ var (
 	rxSlackUser = regexp.MustCompile("<@[UW][A-Z0-9]+>")
 )
 
-// ExpandURLs expands and unquotes URLs from Slack's messages. Slack quotes the
-// URLs and groups them between < and >. It also translates potential URLs into
-// actual URLs (e.g. when you type "example.com"), so you will get something
-// like <http://example.com|example.com>. This function tries to detect them and
-// unquote and expand them for a better visualization on IRC.
-func ExpandURLs(text string) string {
+// ExpandText expands and unquotes text and URLs from Slack's messages. Slack
+// quotes the text and URLS, and the latter are enclosed in < and >. It also
+// translates potential URLs into actual URLs (e.g. when you type "example.com"),
+// so you will get something like <http://example.com|example.com>. This
+// function tries to detect them and unquote and expand them for a better
+// visualization on IRC.
+func ExpandText(text string) string {
 	text = rxSlackUrls.ReplaceAllStringFunc(text, func(subs string) string {
 		if !strings.HasPrefix(subs, "<") && !strings.HasSuffix(subs, ">") {
 			return subs
@@ -68,12 +69,13 @@ func ExpandURLs(text string) string {
 			return subs
 		}
 		// Slack escapes the URLs passed by the users, let's undo that
-		u.RawQuery = html.UnescapeString(u.RawQuery)
+		//u.RawQuery = html.UnescapeString(u.RawQuery)
 		if slackMsg == "" {
 			return u.String()
 		}
 		return fmt.Sprintf("%s (%s)", slackMsg, u.String())
 	})
+	text = html.UnescapeString(text)
 	return text
 }
 
@@ -196,7 +198,7 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 					return fmt.Sprintf("@%s", user.Name)
 				})
 				// replace some HTML entities
-				text = ExpandURLs(text)
+				text = ExpandText(text)
 
 				// FIXME if two instances are connected to the Slack API at the
 				// same time, this will hide the other instance's message
