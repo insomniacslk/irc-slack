@@ -187,8 +187,7 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 				}
 				// replace UIDs with user names
 				text := ev.Msg.Text
-				// handle multiline messages by replacing newlines
-				text = strings.Replace(text, "\n", "\u2026 ", -1)
+				// replace UIDs with nicknames
 				text = rxSlackUser.ReplaceAllStringFunc(text, func(subs string) string {
 					uid := subs[2 : len(subs)-1]
 					user := ctx.GetUserInfo(uid)
@@ -209,12 +208,15 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 					// don't print my own messages
 					continue
 				}
-				privmsg := fmt.Sprintf(":%v!%v@%v PRIVMSG %v :%v\r\n",
-					name, ev.Msg.User, ctx.ServerName,
-					channame, text,
-				)
-				log.Print(privmsg)
-				ctx.Conn.Write([]byte(privmsg))
+				// handle multi-line messages
+				for _, line := range strings.Split(text, "\n") {
+					privmsg := fmt.Sprintf(":%v!%v@%v PRIVMSG %v :%v\r\n",
+						name, ev.Msg.User, ctx.ServerName,
+						channame, line,
+					)
+					log.Print(privmsg)
+					ctx.Conn.Write([]byte(privmsg))
+				}
 				msgEv := msg.Data.(*slack.MessageEvent)
 				// Check if the topic has changed
 				if msgEv.Topic != ctx.Channels[msgEv.Channel].Topic {
