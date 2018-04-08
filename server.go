@@ -85,6 +85,13 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 	tokens := strings.Split(data, " ")
 	cmd := tokens[0]
 	args := tokens[1:]
+	var trailing string
+	for idx, arg := range args {
+		if strings.HasPrefix(arg, ":") {
+			trailing = strings.Join(args[idx:], " ")[1:]
+			args = args[:idx]
+		}
+	}
 	handler, ok := IrcCommandHandlers[cmd]
 	if !ok {
 		log.Printf("No handler found for %v", cmd)
@@ -95,5 +102,5 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 		ctx = &IrcContext{Conn: conn, ServerName: s.Name, SlackAPIKey: s.SlackAPIKey}
 		UserContexts[conn.RemoteAddr()] = ctx
 	}
-	handler(ctx, prefix, cmd, args...)
+	handler(ctx, prefix, cmd, args, trailing)
 }
