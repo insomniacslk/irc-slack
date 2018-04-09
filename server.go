@@ -90,6 +90,7 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 		if strings.HasPrefix(arg, ":") {
 			trailing = strings.Join(args[idx:], " ")[1:]
 			args = args[:idx]
+			break
 		}
 	}
 	handler, ok := IrcCommandHandlers[cmd]
