@@ -121,7 +121,7 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 	ctx.ChanMutex = &sync.Mutex{}
 
 	// asynchronously get groups
-	var groupsErr chan error
+	groupsErr := make(chan error, 1)
 	go func(errors chan<- error) {
 		groups, err := ctx.SlackClient.GetGroups(true)
 		if err != nil {
@@ -133,10 +133,11 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 			log.Printf("--> #%s topic=%s", g.Name, g.Topic.Value)
 			go IrcSendChanInfoAfterJoin(ctx, g.Name, g.Topic.Value, g.Members, true)
 		}
+		errors <- nil
 	}(groupsErr)
 
 	// asynchronously get channels
-	var chansErr chan error
+	chansErr := make(chan error, 1)
 	go func(errors chan<- error) {
 		log.Print("Channel list:")
 		channels, err := ctx.SlackClient.GetChannels(true)
@@ -155,6 +156,7 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 			}
 			log.Printf("  #%v %v", ch.Name, info)
 		}
+		errors <- nil
 	}(chansErr)
 
 	if err := <-groupsErr; err != nil {
