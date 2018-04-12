@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/nlopes/slack"
 )
@@ -98,7 +99,9 @@ func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, topic string, members []str
 	SendIrcNumeric(ctx, 353, fmt.Sprintf("%s = #%s", ctx.Nick, name), strings.Join(ctx.UserIDsToNames(members...), " "))
 	// RPL_ENDOFNAMES
 	SendIrcNumeric(ctx, 366, fmt.Sprintf("%s #%s", ctx.Nick, name), "End of NAMES list")
+	ctx.ChanMutex.Lock()
 	ctx.Channels[name] = Channel{Topic: topic, Members: members, IsGroup: isGroup}
+	ctx.ChanMutex.Unlock()
 }
 
 // IrcAfterLoggingIn is called once the user has successfully logged on IRC
@@ -115,32 +118,52 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 	SendIrcNumeric(ctx, 376, ctx.Nick, "")
 
 	ctx.Channels = make(map[string]Channel)
-	groups, err := ctx.SlackClient.GetGroups(true)
-	if err != nil {
-		return fmt.Errorf("Error getting Slack groups: %v", err)
+	ctx.ChanMutex = &sync.Mutex{}
+
+	// asynchronously get groups
+	var groupsErr chan error
+	go func(errors chan<- error) {
+		groups, err := ctx.SlackClient.GetGroups(true)
+		if err != nil {
+			errors <- fmt.Errorf("Error getting Slack groups: %v", err)
+			return
+		}
+		log.Print("Group list:")
+		for _, g := range groups {
+			log.Printf("--> #%s topic=%s", g.Name, g.Topic.Value)
+			go IrcSendChanInfoAfterJoin(ctx, g.Name, g.Topic.Value, g.Members, true)
+		}
+	}(groupsErr)
+
+	// asynchronously get channels
+	var chansErr chan error
+	go func(errors chan<- error) {
+		log.Print("Channel list:")
+		channels, err := ctx.SlackClient.GetChannels(true)
+		if err != nil {
+			errors <- fmt.Errorf("Error getting Slack channels: %v", err)
+			return
+		}
+		for _, ch := range channels {
+			var info string
+			if ch.IsMember {
+				info = "(joined) "
+				info += fmt.Sprintf(" topic=%s ", ch.Topic.Value)
+				// the channels are already joined, notify the IRC client of their
+				// existence
+				go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, ch.Members, false)
+			}
+			log.Printf("  #%v %v", ch.Name, info)
+		}
+	}(chansErr)
+
+	if err := <-groupsErr; err != nil {
+		return err
 	}
-	log.Print("Group list:")
-	for _, g := range groups {
-		log.Printf("--> #%s topic=%s", g.Name, g.Topic.Value)
-		IrcSendChanInfoAfterJoin(ctx, g.Name, g.Topic.Value, g.Members, true)
+	if err := <-chansErr; err != nil {
+		return err
 	}
 
-	log.Print("Channel list:")
-	channels, err := ctx.SlackClient.GetChannels(true)
-	if err != nil {
-		return fmt.Errorf("Error getting Slack channels: %v", err)
-	}
-	for _, ch := range channels {
-		var info string
-		if ch.IsMember {
-			info = "(joined) "
-			info += fmt.Sprintf(" topic=%s ", ch.Topic.Value)
-			// the channels are already joined, notify the IRC client of their
-			// existence
-			IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, ch.Members, false)
-		}
-		log.Printf("  #%v %v", ch.Name, info)
-	}
 	go func(rtm *slack.RTM) {
 		log.Print("Started Slack event listener")
 		for msg := range rtm.IncomingEvents {

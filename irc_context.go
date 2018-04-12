@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 
 	"github.com/nlopes/slack"
 )
@@ -19,6 +20,7 @@ type IrcContext struct {
 	SlackConnected bool
 	ServerName     string
 	Channels       map[string]Channel
+	ChanMutex      *sync.Mutex
 	Users          []slack.User
 }
 
