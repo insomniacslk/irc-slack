@@ -268,7 +268,7 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 				log.Printf("Disconnected from Slack (intentional: %v)", msg.Data.(*slack.DisconnectedEvent).Intentional)
 				ctx.SlackConnected = false
 				ctx.Conn.Close()
-			case *slack.ChannelJoinedEvent, *slack.ChannelLeftEvent:
+			case *slack.MemberJoinedChannelEvent, *slack.MemberLeftChannelEvent:
 				// refresh the users list
 				// FIXME also send a JOIN / PART message to the IRC client
 				ctx.GetUsers(true)
