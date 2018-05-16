@@ -148,11 +148,28 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 		for _, ch := range channels {
 			var info string
 			if ch.IsMember {
+				var (
+					members, m []string
+					nextCursor string
+					err        error
+				)
+				for {
+					m, nextCursor, err = ctx.SlackClient.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: ch.ID, Cursor: nextCursor})
+					if err != nil {
+						log.Printf("Cannot get member list for channel %s: %v", ch.Name, err)
+						break
+					}
+					members = append(members, m...)
+					log.Printf(" nextCursor=%v", nextCursor)
+					if nextCursor == "" {
+						break
+					}
+				}
 				info = "(joined) "
-				info += fmt.Sprintf(" topic=%s ", ch.Topic.Value)
+				info += fmt.Sprintf(" topic=%s members=%d", ch.Topic.Value, len(members))
 				// the channels are already joined, notify the IRC client of their
 				// existence
-				go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, ch.Members, false)
+				go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, members, false)
 			}
 			log.Printf("  #%v %v", ch.Name, info)
 		}
@@ -268,7 +285,7 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 				log.Printf("Disconnected from Slack (intentional: %v)", msg.Data.(*slack.DisconnectedEvent).Intentional)
 				ctx.SlackConnected = false
 				ctx.Conn.Close()
-			case *slack.ChannelJoinedEvent, *slack.ChannelLeftEvent:
+			case *slack.MemberJoinedChannelEvent, *slack.MemberLeftChannelEvent:
 				// refresh the users list
 				// FIXME also send a JOIN / PART message to the IRC client
 				ctx.GetUsers(true)
