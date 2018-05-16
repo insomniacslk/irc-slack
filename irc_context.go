@@ -89,12 +89,19 @@ func (ic IrcContext) Mask() string {
 func (ic IrcContext) UserIDsToNames(userIDs ...string) []string {
 	var names []string
 	// TODO implement using ic.GetUsers() instead
+	allUsers := ic.GetUsers(true)
+	usersMap := make(map[string]slack.User, len(allUsers))
+	for _, user := range allUsers {
+		usersMap[user.ID] = user
+	}
 	for _, uid := range userIDs {
-		user, err := ic.SlackClient.GetUserInfo(uid)
-		if err != nil {
+		user, ok := usersMap[uid]
+		if !ok {
 			names = append(names, uid)
+			log.Printf("Could not fetch user %s", uid)
 		} else {
 			names = append(names, user.Name)
+			log.Printf("Fetched info for user ID %s: %s", uid, user.Name)
 		}
 	}
 	return names
