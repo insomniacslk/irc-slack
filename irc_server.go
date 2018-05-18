@@ -105,6 +105,67 @@ func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, topic string, members []str
 	ctx.ChanMutex.Unlock()
 }
 
+// join will join the channel with the given ID, name and topic, and send back a
+// response to the IRC client
+func join(ctx *IrcContext, id, name, topic string) {
+	var (
+		info       string
+		members, m []string
+		nextCursor string
+		err        error
+	)
+	for {
+		m, nextCursor, err = ctx.SlackClient.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: id, Cursor: nextCursor})
+		if err != nil {
+			log.Printf("Cannot get member list for channel %s: %v", name, err)
+			break
+		}
+		members = append(members, m...)
+		log.Printf(" nextCursor=%v", nextCursor)
+		if nextCursor == "" {
+			break
+		}
+	}
+	info = "(joined) "
+	info += fmt.Sprintf(" topic=%s members=%d", topic, len(members))
+	log.Printf(info)
+	// the channels are already joined, notify the IRC client of their
+	// existence
+	go IrcSendChanInfoAfterJoin(ctx, name, topic, members, false)
+}
+
+// joinGroups gets all the available Slack groups and sends an IRC JOIN message
+// for each of the joined groups on Slack
+func joinGroups(ctx *IrcContext, errors chan<- error) {
+	groups, err := ctx.SlackClient.GetGroups(true)
+	if err != nil {
+		errors <- fmt.Errorf("Error getting Slack groups: %v", err)
+		return
+	}
+	log.Print("Group list:")
+	for _, gr := range groups {
+		join(ctx, gr.ID, gr.Name, gr.Topic.Value)
+	}
+	errors <- nil
+}
+
+// joinChannels gets all the available Slack channels and sends an IRC JOIN message
+// for each of the joined channels on Slack
+func joinChannels(ctx *IrcContext, errors chan<- error) {
+	log.Print("Channel list:")
+	channels, err := ctx.SlackClient.GetChannels(true)
+	if err != nil {
+		errors <- fmt.Errorf("Error getting Slack channels: %v", err)
+		return
+	}
+	for _, ch := range channels {
+		if ch.IsMember {
+			join(ctx, ch.ID, ch.Name, ch.Topic.Value)
+		}
+	}
+	errors <- nil
+}
+
 // IrcAfterLoggingIn is called once the user has successfully logged on IRC
 func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 	// Send a welcome to the user, to let the client knows that it's connected
@@ -123,59 +184,11 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 
 	// asynchronously get groups
 	groupsErr := make(chan error, 1)
-	go func(errors chan<- error) {
-		groups, err := ctx.SlackClient.GetGroups(true)
-		if err != nil {
-			errors <- fmt.Errorf("Error getting Slack groups: %v", err)
-			return
-		}
-		log.Print("Group list:")
-		for _, g := range groups {
-			log.Printf("--> #%s topic=%s", g.Name, g.Topic.Value)
-			go IrcSendChanInfoAfterJoin(ctx, g.Name, g.Topic.Value, g.Members, true)
-		}
-		errors <- nil
-	}(groupsErr)
+	go joinGroups(ctx, groupsErr)
 
 	// asynchronously get channels
 	chansErr := make(chan error, 1)
-	go func(errors chan<- error) {
-		log.Print("Channel list:")
-		channels, err := ctx.SlackClient.GetChannels(true)
-		if err != nil {
-			errors <- fmt.Errorf("Error getting Slack channels: %v", err)
-			return
-		}
-		for _, ch := range channels {
-			var info string
-			if ch.IsMember {
-				var (
-					members, m []string
-					nextCursor string
-					err        error
-				)
-				for {
-					m, nextCursor, err = ctx.SlackClient.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: ch.ID, Cursor: nextCursor})
-					if err != nil {
-						log.Printf("Cannot get member list for channel %s: %v", ch.Name, err)
-						break
-					}
-					members = append(members, m...)
-					log.Printf(" nextCursor=%v", nextCursor)
-					if nextCursor == "" {
-						break
-					}
-				}
-				info = "(joined) "
-				info += fmt.Sprintf(" topic=%s members=%d", ch.Topic.Value, len(members))
-				// the channels are already joined, notify the IRC client of their
-				// existence
-				go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, members, false)
-			}
-			log.Printf("  #%v %v", ch.Name, info)
-		}
-		errors <- nil
-	}(chansErr)
+	go joinChannels(ctx, chansErr)
 
 	if err := <-groupsErr; err != nil {
 		return err
