@@ -3,12 +3,12 @@
 `irc-slack` is an IRC-to-Slack gateway. Run it locally, and it will spawn an IRC
 server that will let you use your Slack teams via IRC.
 
-Slack is ending support for IRC and XMPP gateway on the 15th of April 2018. So
+Slack has ended support for IRC and XMPP gateway on the 15th of April 2018. So
 what's left to do for people like me, who want to still be able to log in via
 IRC? Either you use [wee-slack](https://github.com/wee-slack/wee-slack) (but I
 don't use WeeChat), or you implement your own stuff.
 
-The code quality is currently at the `works-for-me` level.
+The code quality is currently at the `works-for-me` level, but it's improving steadily.
 
 NOTE: after Slack turned down their IRC gateway I got a lot of contacts from users of irc-slack asking me to fix and improve it. I didn't expect people to actually use it, but thanks to your feedback I'm now actively developing it again :-)
 Please keep reporting bugs and sending PRs!
