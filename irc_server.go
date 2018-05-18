@@ -35,6 +35,7 @@ var IrcCommandHandlers = map[string]IrcCommandHandler{
 	"PASS":    IrcPassHandler,
 	"WHOIS":   IrcWhoisHandler,
 	"JOIN":    IrcJoinHandler,
+	"PART":    IrcPartHandler,
 }
 
 var (
@@ -471,4 +472,52 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	}
 	log.Printf("Joined channel %s", ch.Name)
 	go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, ch.Members, true)
+}
+
+// IrcPartHandler is called when a JOIN command is sent
+func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
+	if len(args) != 1 {
+		// ERR_UNKNOWNERROR
+		SendIrcNumeric(ctx, 400, ctx.Nick, "Invalid PART command")
+		return
+	}
+	channame := args[0]
+	if strings.HasPrefix(channame, "#") {
+		channame = channame[1:]
+	}
+	// Slack needs the channel ID to leave it, not the channel name. The only
+	// way to get the channel ID from the name is retrieving the whole channel
+	// list and finding the one whose name is the one we want to leave
+	chanlist, err := ctx.SlackClient.GetChannels(true)
+	if err != nil {
+		log.Printf("Cannot leave channel %s: %v", channame, err)
+		// ERR_UNKNOWNERROR
+		SendIrcNumeric(ctx, 400, ctx.Nick, fmt.Sprintf("Cannot leave channel: %v", err))
+		return
+	}
+	var chanID string
+	for _, ch := range chanlist {
+		if ch.Name == channame {
+			chanID = ch.ID
+			log.Printf("Trying to leave channel: %+v", ch)
+			break
+		}
+	}
+	if chanID == "" {
+		// ERR_USERNOTINCHANNEL
+		SendIrcNumeric(ctx, 441, ctx.Nick, fmt.Sprintf("User is not in channel %s", channame))
+		return
+	}
+	notInChan, err := ctx.SlackClient.LeaveChannel(chanID)
+	if err != nil {
+		log.Printf("Cannot leave channel %s (id: %s): %v", channame, chanID, err)
+		return
+	}
+	if notInChan {
+		// ERR_USERNOTINCHANNEL
+		SendIrcNumeric(ctx, 441, ctx.Nick, fmt.Sprintf("User is not in channel %s", channame))
+		return
+	}
+	log.Printf("Left channel %s", channame)
+	ctx.Conn.Write([]byte(fmt.Sprintf(":%v PART #%v\r\n", ctx.Mask(), channame)))
 }
