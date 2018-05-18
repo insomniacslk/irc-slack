@@ -34,7 +34,7 @@ var IrcCommandHandlers = map[string]IrcCommandHandler{
 	"MODE":    IrcModeHandler,
 	"PASS":    IrcPassHandler,
 	"WHOIS":   IrcWhoisHandler,
-    "JOIN": IrcJoinHandler,
+	"JOIN":    IrcJoinHandler,
 }
 
 var (
@@ -443,7 +443,7 @@ func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 	}
 }
 
-// IrcWhoisHandler is called when a JOIN command is sent
+// IrcJoinHandler is called when a JOIN command is sent
 func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
 		// ERR_UNKNOWNERROR
@@ -456,6 +456,6 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		log.Printf("Cannot join channel %s: %v", channame, err)
 		return
 	}
-	log.Printf("Joined channel %s", ch)
+	log.Printf("Joined channel %s", ch.Name)
 	go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, ch.Members, true)
 }
