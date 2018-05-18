@@ -34,6 +34,7 @@ var IrcCommandHandlers = map[string]IrcCommandHandler{
 	"MODE":    IrcModeHandler,
 	"PASS":    IrcPassHandler,
 	"WHOIS":   IrcWhoisHandler,
+    "JOIN": IrcJoinHandler,
 }
 
 var (
@@ -440,4 +441,21 @@ func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 		// RPL_ENDOFWHOIS
 		SendIrcNumeric(ctx, 319, ctx.Nick, username)
 	}
+}
+
+// IrcWhoisHandler is called when a JOIN command is sent
+func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
+	if len(args) != 1 {
+		// ERR_UNKNOWNERROR
+		SendIrcNumeric(ctx, 400, ctx.Nick, "Invalid JOIN command")
+		return
+	}
+	channame := args[0]
+	ch, err := ctx.SlackClient.JoinChannel(channame)
+	if err != nil {
+		log.Printf("Cannot join channel %s: %v", channame, err)
+		return
+	}
+	log.Printf("Joined channel %s", ch)
+	go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, ch.Members, true)
 }
