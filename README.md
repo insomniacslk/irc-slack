@@ -3,7 +3,7 @@
 `irc-slack` is an IRC-to-Slack gateway. Run it locally, and it will spawn an IRC
 server that will let you use your Slack teams via IRC.
 
-[![](https://imgs.xkcd.com/comics/team_chat_2x.png)](https://xkcd.com/1782/)
+[![](images/team_chat_2x.png)](https://xkcd.com/1782/)
 
 (That guy is me)
 
