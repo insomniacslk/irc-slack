@@ -115,7 +115,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			// FIXME also send a JOIN / PART message to the IRC client
 			ctx.GetUsers(true)
 		default:
-			log.Printf("SLACK event: %v: %v", msg.Type, msg.Data)
+			log.Printf("SLACK event: %v: %+v", msg.Type, msg.Data)
 		}
 	}
 }
