@@ -70,6 +70,15 @@ func (ic *IrcContext) GetUserInfoByName(username string) *slack.User {
 	return nil
 }
 
+// UserID returns the user's Slack ID
+func (ic IrcContext) UserID() string {
+	user := ic.GetUserInfoByName(ic.Nick)
+	if user == nil {
+		return ""
+	}
+	return user.ID
+}
+
 // Mask returns the IRC mask for the current user
 func (ic IrcContext) Mask() string {
 	var username string
