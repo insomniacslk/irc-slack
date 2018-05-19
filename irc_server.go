@@ -135,36 +135,31 @@ func join(ctx *IrcContext, id, name, topic string) {
 	go IrcSendChanInfoAfterJoin(ctx, name, topic, members, false)
 }
 
-// joinGroups gets all the available Slack groups and sends an IRC JOIN message
-// for each of the joined groups on Slack
-func joinGroups(ctx *IrcContext, errors chan<- error) {
-	groups, err := ctx.SlackClient.GetGroups(true)
-	if err != nil {
-		errors <- fmt.Errorf("Error getting Slack groups: %v", err)
-		return
-	}
-	log.Print("Group list:")
-	for _, gr := range groups {
-		join(ctx, gr.ID, gr.Name, gr.Topic.Value)
-	}
-	errors <- nil
-}
-
 // joinChannels gets all the available Slack channels and sends an IRC JOIN message
 // for each of the joined channels on Slack
-func joinChannels(ctx *IrcContext, errors chan<- error) {
+func joinChannels(ctx *IrcContext) error {
 	log.Print("Channel list:")
-	channels, err := ctx.SlackClient.GetChannels(true)
-	if err != nil {
-		errors <- fmt.Errorf("Error getting Slack channels: %v", err)
-		return
+	var (
+		channels, chans []slack.Channel
+		cursor          string
+		err             error
+	)
+	for {
+		chans, cursor, err = ctx.SlackClient.GetConversations(&slack.GetConversationsParameters{})
+		if err != nil {
+			return fmt.Errorf("Error getting Slack channels: %v", err)
+		}
+		channels = append(channels, chans...)
+		if cursor == "" {
+			break
+		}
 	}
 	for _, ch := range channels {
 		if ch.IsMember {
 			join(ctx, ch.ID, ch.Name, ch.Topic.Value)
 		}
 	}
-	errors <- nil
+	return nil
 }
 
 // IrcAfterLoggingIn is called once the user has successfully logged on IRC
@@ -183,18 +178,8 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 	ctx.Channels = make(map[string]Channel)
 	ctx.ChanMutex = &sync.Mutex{}
 
-	// asynchronously get groups
-	groupsErr := make(chan error, 1)
-	go joinGroups(ctx, groupsErr)
-
-	// asynchronously get channels
-	chansErr := make(chan error, 1)
-	go joinChannels(ctx, chansErr)
-
-	if err := <-groupsErr; err != nil {
-		return err
-	}
-	if err := <-chansErr; err != nil {
+	// get channels
+	if err := joinChannels(ctx); err != nil {
 		return err
 	}
 
