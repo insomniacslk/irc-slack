@@ -64,4 +64,6 @@ Find my contacts on https://insomniac.slackware.it .
 
 ## Thanks
 
-Special thanks to Stefan Stasik for helping me troubleshoot a zillion of bugs and misbehaviours :)
+Special thanks to
+* Stefan Stasik for helping me find, fix and troubleshoot a zillion of bugs :)
+* [Mauro Codella](https://github.com/codella) for patiently reading and replying for two hours in a private conversation that I used to test the fix at [pull/23](https://github.com/insomniacslk/irc-slack/pull/23) :D 
