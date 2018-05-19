@@ -7,7 +7,7 @@ server that will let you use your Slack teams via IRC.
 
 (That guy is me)
 
-Slack has ended support for IRC and XMPP gateway on the 15th of April 2018. So
+Slack has ended support for IRC and XMPP gateway on the 15th of May 2018. So
 what's left to do for people like me, who want to still be able to log in via
 IRC? Either you use [wee-slack](https://github.com/wee-slack/wee-slack) (but I
 don't use WeeChat), or you implement your own stuff.
