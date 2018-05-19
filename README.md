@@ -41,6 +41,8 @@ your-team-name.slack.com.
 ```
 $ ./irc-slack -h
 Usage of ./irc-slack:
+  -H string
+        IP address to listen on (default "127.0.0.1")
   -p int
         Local port to listen on (default 6666)
   -s string
