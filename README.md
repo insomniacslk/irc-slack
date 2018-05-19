@@ -58,3 +58,6 @@ Plenty of them. I wrote this project while on a plane (like many other projects 
 
 Find my contacts on https://insomniac.slackware.it .
 
+## Thanks
+
+Special thanks to Stefan Stasik for helping me troubleshoot a zillion of bugs and misbehaviours :)
