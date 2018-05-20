@@ -25,18 +25,26 @@ go build
 ./irc-slack # by default on port 6666
 ```
 
-Then configure your IRC client to connect to localhost:6666 and use a Slack legacy token as password. Example for irssi:
+Then configure your IRC client to connect to localhost:6666 and use a Slack legacy token as password. Get you Slack legacy token at https://api.slack.com/custom-integrations/legacy-tokens .
 
+
+### Connecting with irssi
 ```
 /network add SlackYourTeamName
 /server add -auto SlackYourTeamName localhost 6666 xoxp-<your-slack-token>
 ```
 
-Get you Slack legacy token at https://api.slack.com/custom-integrations/legacy-tokens .
 
+### Connecting with WeeChat
 
-You can also specify the port to listen on, and the server name, e.g.
-your-team-name.slack.com.
+```
+/server add yourteam.slack.com localhost/6666
+/set irc.server.yourteam.slack.com.password xoxp-<your-slack-token>
+```
+
+## Gateway usage
+
+There are a few options that you can pass to the server, e.g. to change the listener port, or the server name:
 
 ```
 $ ./irc-slack -h
