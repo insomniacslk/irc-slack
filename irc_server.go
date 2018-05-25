@@ -9,15 +9,17 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/nlopes/slack"
 )
 
 // Project constants
 const (
-	ProjectAuthor      = "Andrea Barberio"
-	ProjectAuthorEmail = "insomniac@slackware.it"
-	ProjectURL         = "https://github.com/insomniacslk/irc-slack"
+	ProjectAuthor       = "Andrea Barberio"
+	ProjectAuthorEmail  = "insomniac@slackware.it"
+	ProjectURL          = "https://github.com/insomniacslk/irc-slack"
+	MaxSlackAPIAttempts = 3
 )
 
 // IrcCommandHandler is the prototype that every IRC command handler has to implement
@@ -111,17 +113,36 @@ func usersInConversation(ctx *IrcContext, conversation string) ([]string, error)
 		members, m []string
 		nextCursor string
 		err        error
+		page       int
 	)
 	for {
-		m, nextCursor, err = ctx.SlackClient.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: conversation, Cursor: nextCursor})
-		if err != nil {
-			return nil, fmt.Errorf("Cannot get member list for conversation %s: %v", conversation, err)
+		attempt := 0
+		for {
+			// retry if rate-limited, no more than MaxSlackAPIAttempts times
+			if attempt >= MaxSlackAPIAttempts {
+				return nil, fmt.Errorf("GetUsersInConversation: exceeded the maximum number of attempts (%d) with the Slack API", MaxSlackAPIAttempts)
+			}
+			log.Printf("GetUsersInConversation: page %d attempt #%d nextCursor=%s", page, attempt, nextCursor)
+			m, nextCursor, err = ctx.SlackClient.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: conversation, Cursor: nextCursor})
+			if err != nil {
+				log.Printf("Err: %v", err)
+				if rlErr, ok := err.(*slack.RateLimitedError); ok {
+					// we were rate-limited. Let's wait as much as Slack
+					// instructs us to do
+					log.Printf("Hit Slack API rate limiter. Waiting %v", rlErr.RetryAfter)
+					time.Sleep(rlErr.RetryAfter)
+					attempt++
+					continue
+				}
+				return nil, fmt.Errorf("Cannot get member list for conversation %s: %v", conversation, err)
+			}
+			break
 		}
 		members = append(members, m...)
-		log.Printf(" nextCursor=%v", nextCursor)
 		if nextCursor == "" {
 			break
 		}
+		page++
 	}
 	return members, nil
 }
@@ -148,16 +169,34 @@ func joinChannels(ctx *IrcContext) error {
 	log.Print("Channel list:")
 	var (
 		channels, chans []slack.Channel
-		cursor          string
+		nextCursor      string
 		err             error
 	)
 	for {
-		chans, cursor, err = ctx.SlackClient.GetConversations(&slack.GetConversationsParameters{})
-		if err != nil {
-			return fmt.Errorf("Error getting Slack channels: %v", err)
+		attempt := 0
+		for {
+			// retry if rate-limited, no more than MaxSlackAPIAttempts times
+			if attempt >= MaxSlackAPIAttempts {
+				return fmt.Errorf("GetConversations: exceeded the maximum number of attempts (%d) with the Slack API", MaxSlackAPIAttempts)
+			}
+			log.Printf("GetConversations: attempt #%d, nextCursor=%s", attempt, nextCursor)
+			chans, nextCursor, err = ctx.SlackClient.GetConversations(&slack.GetConversationsParameters{Cursor: nextCursor})
+			if err != nil {
+				log.Printf("Err: %v", err)
+				if rlErr, ok := err.(*slack.RateLimitedError); ok {
+					// we were rate-limited. Let's wait as much as Slack
+					// instructs us to do
+					log.Printf("Hit Slack API rate limiter. Waiting %v", rlErr.RetryAfter)
+					time.Sleep(rlErr.RetryAfter)
+					attempt++
+					continue
+				}
+				return fmt.Errorf("Cannot get slack channels: %v", err)
+			}
+			break
 		}
 		channels = append(channels, chans...)
-		if cursor == "" {
+		if nextCursor == "" {
 			break
 		}
 	}
