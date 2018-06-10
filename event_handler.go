@@ -39,14 +39,14 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				users, err := usersInConversation(ctx, ev.Msg.Channel)
 				if err != nil {
 					// ERR_UNKNOWNERROR
-					SendIrcNumeric(ctx, 400, ctx.Nick, fmt.Sprintf("Cannot get conversation info for %s", ev.Msg.Channel))
+					SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Cannot get conversation info for %s", ev.Msg.Channel))
 					return
 				}
 				// we expect only two members in a direct message. Raise an
 				// error if not.
 				if len(users) != 2 {
 					// ERR_UNKNOWNERROR
-					SendIrcNumeric(ctx, 400, ctx.Nick, fmt.Sprintf("Exactly two users expected in direct message, got %d (conversation ID: %s)", len(users), ev.Msg.Channel))
+					SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Exactly two users expected in direct message, got %d (conversation ID: %s)", len(users), ev.Msg.Channel))
 					return
 
 				}
@@ -110,7 +110,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			// believing it was sent from here. But since it's not, both
 			// local echo and remote message won't be shown
 			botID := msg.Data.(*slack.MessageEvent).BotID
-			if name == ctx.Nick && botID != user.Profile.BotID {
+			if name == ctx.Nick() && botID != user.Profile.BotID {
 				// don't print my own messages
 				continue
 			}

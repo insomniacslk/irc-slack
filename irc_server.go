@@ -98,11 +98,11 @@ func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, topic string, members []str
 	// TODO wrap all these Conn.Write into a function
 	ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), name)))
 	// RPL_TOPIC
-	SendIrcNumeric(ctx, 332, fmt.Sprintf("%s #%s", ctx.Nick, name), topic)
+	SendIrcNumeric(ctx, 332, fmt.Sprintf("%s #%s", ctx.Nick(), name), topic)
 	// RPL_NAMREPLY
-	SendIrcNumeric(ctx, 353, fmt.Sprintf("%s = #%s", ctx.Nick, name), strings.Join(ctx.UserIDsToNames(members...), " "))
+	SendIrcNumeric(ctx, 353, fmt.Sprintf("%s = #%s", ctx.Nick(), name), strings.Join(ctx.UserIDsToNames(members...), " "))
 	// RPL_ENDOFNAMES
-	SendIrcNumeric(ctx, 366, fmt.Sprintf("%s #%s", ctx.Nick, name), "End of NAMES list")
+	SendIrcNumeric(ctx, 366, fmt.Sprintf("%s #%s", ctx.Nick(), name), "End of NAMES list")
 	ctx.ChanMutex.Lock()
 	ctx.Channels[name] = Channel{Topic: topic, Members: members, IsGroup: isGroup}
 	ctx.ChanMutex.Unlock()
@@ -154,8 +154,7 @@ func join(ctx *IrcContext, id, name, topic string) error {
 	if err != nil {
 		return err
 	}
-	info := "(joined) "
-	info += fmt.Sprintf(" topic=%s members=%d", topic, len(members))
+	info := fmt.Sprintf("#%s topic=%s members=%d", name, topic, len(members))
 	log.Printf(info)
 	// the channels are already joined, notify the IRC client of their
 	// existence
@@ -214,15 +213,20 @@ func joinChannels(ctx *IrcContext) error {
 func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 	// Send a welcome to the user, to let the client knows that it's connected
 	// RPL_WELCOME
-	SendIrcNumeric(ctx, 1, ctx.Nick, fmt.Sprintf("Welcome to the %s IRC chat, %s!", ctx.ServerName, ctx.Nick))
+	SendIrcNumeric(ctx, 1, ctx.Nick(), fmt.Sprintf("Welcome to the %s IRC chat, %s!", ctx.ServerName, ctx.Nick()))
 	// RPL_MOTDSTART
-	SendIrcNumeric(ctx, 375, ctx.Nick, "")
+	SendIrcNumeric(ctx, 375, ctx.Nick(), "")
 	// RPL_MOTD
-	SendIrcNumeric(ctx, 372, ctx.Nick, fmt.Sprintf("This is an IRC-to-Slack gateway, written by %s <%s>.", ProjectAuthor, ProjectAuthorEmail))
-	SendIrcNumeric(ctx, 372, ctx.Nick, fmt.Sprintf("More information at %s.", ProjectURL))
-	SendIrcNumeric(ctx, 372, ctx.Nick, fmt.Sprintf("Slack team name: %s", ctx.SlackRTM.GetInfo().Team.Name))
+	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("This is an IRC-to-Slack gateway, written by %s <%s>.", ProjectAuthor, ProjectAuthorEmail))
+	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("More information at %s.", ProjectURL))
+	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("Slack team name: %s", ctx.SlackRTM.GetInfo().Team.Name))
+	log.Printf("Getting user info for %s (ID: %s)", ctx.Nick(), ctx.UserName())
+	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("Your user info: "))
+	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("  Name     : %s", ctx.User.Name))
+	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("  ID       : %s", ctx.User.ID))
+	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("  RealName : %s", ctx.User.RealName))
 	// RPL_ENDOFMOTD
-	SendIrcNumeric(ctx, 376, ctx.Nick, "")
+	SendIrcNumeric(ctx, 376, ctx.Nick(), "")
 
 	ctx.Channels = make(map[string]Channel)
 	ctx.ChanMutex = &sync.Mutex{}
@@ -296,7 +300,12 @@ func connectToSlack(ctx *IrcContext) error {
 	log.Printf("  Groups  : %v", info.Groups)
 	log.Printf("  Bots    : %v", info.Bots)
 	log.Printf("  IMs     : %v", info.IMs)
-	ctx.Nick = info.User.Name
+	user := ctx.GetUserInfo(info.User.ID)
+	if user == nil {
+		return fmt.Errorf("Cannot get info for user %s (ID: %s)", info.User.Name, info.User.ID)
+	}
+	ctx.User = user
+	ctx.RealName = user.RealName
 	return IrcAfterLoggingIn(ctx, rtm)
 }
 
@@ -316,27 +325,25 @@ func IrcNickHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	}
 	// ctx.SlackRTM.GetInfo() should not be `nil` at this points. If it is, it's ok
 	// to panic here
-	ctx.Nick = ctx.SlackRTM.GetInfo().User.Name
-	if args[0] != ctx.Nick {
+	if args[0] != ctx.Nick() {
 		// the client is trying to use a different nickname, let's tell them
 		// they can't.
 		// RPL_SAVENICK
 		SendIrcNumeric(
 			ctx, 43, args[0],
-			fmt.Sprintf("Your nickname is %s and cannot be changed", ctx.Nick),
+			fmt.Sprintf("Your nickname is %s and cannot be changed", ctx.Nick()),
 		)
 	}
-	log.Printf("Setting nickname for %v to %v", ctx.Conn.RemoteAddr(), ctx.Nick)
+	log.Printf("Setting nickname for %v to %v", ctx.Conn.RemoteAddr(), ctx.Nick())
 }
 
 // IrcUserHandler is called when a USER command is sent
 func IrcUserHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
-	if ctx.Nick == "" {
+	if ctx.Nick() == "" {
 		log.Print("Empty nickname!")
 		return
 	}
 	// ignore the user-specified username. Will use the Slack ID instead
-	ctx.UserName = ctx.SlackRTM.GetInfo().User.ID
 	// TODO get user info and set the real name with that info
 	ctx.RealName = trailing
 }
@@ -361,7 +368,7 @@ func IrcModeHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		// get mode request. Always no mode (for now)
 		mode := "+"
 		// RPL_CHANNELMODEIS
-		SendIrcNumeric(ctx, 324, fmt.Sprintf("%s %s %s", ctx.Nick, args[0], mode), "")
+		SendIrcNumeric(ctx, 324, fmt.Sprintf("%s %s %s", ctx.Nick(), args[0], mode), "")
 	} else if len(args) > 1 {
 		// set mode request. Not handled yet
 		// TODO handle mode set
@@ -387,7 +394,7 @@ func IrcPassHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 && len(args) != 2 {
 		// ERR_UNKNOWNERROR
-		SendIrcNumeric(ctx, 400, ctx.Nick, "Invalid WHOIS command")
+		SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid WHOIS command")
 		return
 	}
 	username := args[0]
@@ -397,14 +404,14 @@ func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 	user := ctx.GetUserInfoByName(username)
 	if user == nil {
 		// ERR_NOSUCHNICK
-		SendIrcNumeric(ctx, 401, ctx.Nick, fmt.Sprintf("No such nick %s", username))
+		SendIrcNumeric(ctx, 401, ctx.Nick(), fmt.Sprintf("No such nick %s", username))
 	} else {
 		// RPL_WHOISUSER
 		SendIrcNumeric(ctx, 311, fmt.Sprintf("%s %s %s %s *", username, user.Name, user.ID, "localhost"), user.RealName)
 		// RPL_WHOISSERVER
 		SendIrcNumeric(ctx, 312, fmt.Sprintf("%s %s", username, ctx.ServerName), ctx.ServerName)
 		// RPL_ENDOFWHOIS
-		SendIrcNumeric(ctx, 319, ctx.Nick, username)
+		SendIrcNumeric(ctx, 319, ctx.Nick(), username)
 	}
 }
 
@@ -412,7 +419,7 @@ func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
 		// ERR_UNKNOWNERROR
-		SendIrcNumeric(ctx, 400, ctx.Nick, "Invalid JOIN command")
+		SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid JOIN command")
 		return
 	}
 	channame := args[0]
@@ -429,7 +436,7 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
 		// ERR_UNKNOWNERROR
-		SendIrcNumeric(ctx, 400, ctx.Nick, "Invalid PART command")
+		SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid PART command")
 		return
 	}
 	channame := args[0]
@@ -443,7 +450,7 @@ func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	if err != nil {
 		log.Printf("Cannot leave channel %s: %v", channame, err)
 		// ERR_UNKNOWNERROR
-		SendIrcNumeric(ctx, 400, ctx.Nick, fmt.Sprintf("Cannot leave channel: %v", err))
+		SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Cannot leave channel: %v", err))
 		return
 	}
 	var chanID string
@@ -456,7 +463,7 @@ func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	}
 	if chanID == "" {
 		// ERR_USERNOTINCHANNEL
-		SendIrcNumeric(ctx, 441, ctx.Nick, fmt.Sprintf("User is not in channel %s", channame))
+		SendIrcNumeric(ctx, 441, ctx.Nick(), fmt.Sprintf("User is not in channel %s", channame))
 		return
 	}
 	notInChan, err := ctx.SlackClient.LeaveChannel(chanID)
@@ -466,7 +473,7 @@ func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	}
 	if notInChan {
 		// ERR_USERNOTINCHANNEL
-		SendIrcNumeric(ctx, 441, ctx.Nick, fmt.Sprintf("User is not in channel %s", channame))
+		SendIrcNumeric(ctx, 441, ctx.Nick(), fmt.Sprintf("User is not in channel %s", channame))
 		return
 	}
 	log.Printf("Left channel %s", channame)
