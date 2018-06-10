@@ -43,9 +43,8 @@ func (s Server) HandleRequest(conn *net.TCPConn) {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			// clean up this client's state
-			if ctx, ok := UserContexts[conn.RemoteAddr()]; ok {
+			if _, ok := UserContexts[conn.RemoteAddr()]; ok {
 				// remove from user contexts and users list
-				delete(UserNicknames, ctx.Nick)
 				delete(UserContexts, conn.RemoteAddr())
 			}
 			if err == io.EOF {
