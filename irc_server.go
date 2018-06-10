@@ -289,13 +289,13 @@ func connectToSlack(ctx *IrcContext) error {
 	}
 	log.Print("CLIENT INFO:")
 	log.Printf("  URL     : %v", info.URL)
-	log.Printf("  User    : %s", *info.User)
-	log.Printf("  Team    : %s", *info.Team)
-	log.Printf("  Users   : %s", info.Users)
-	log.Printf("  Channels: %s", info.Channels)
-	log.Printf("  Groups  : %s", info.Groups)
-	log.Printf("  Bots    : %s", info.Bots)
-	log.Printf("  IMs     : %s", info.IMs)
+	log.Printf("  User    : %v", *info.User)
+	log.Printf("  Team    : %v", *info.Team)
+	log.Printf("  Users   : %v", info.Users)
+	log.Printf("  Channels: %v", info.Channels)
+	log.Printf("  Groups  : %v", info.Groups)
+	log.Printf("  Bots    : %v", info.Bots)
+	log.Printf("  IMs     : %v", info.IMs)
 	ctx.Nick = info.User.Name
 	return IrcAfterLoggingIn(ctx, rtm)
 }
