@@ -220,6 +220,7 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 	// RPL_MOTD
 	SendIrcNumeric(ctx, 372, ctx.Nick, fmt.Sprintf("This is an IRC-to-Slack gateway, written by %s <%s>.", ProjectAuthor, ProjectAuthorEmail))
 	SendIrcNumeric(ctx, 372, ctx.Nick, fmt.Sprintf("More information at %s.", ProjectURL))
+	SendIrcNumeric(ctx, 372, ctx.Nick, fmt.Sprintf("Slack team name: %s", ctx.SlackRTM.GetInfo().Team.Name))
 	// RPL_ENDOFMOTD
 	SendIrcNumeric(ctx, 376, ctx.Nick, "")
 
@@ -263,37 +264,72 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 	ctx.SlackClient.PostMessage(target, text, params)
 }
 
+func connectToSlack(ctx *IrcContext) error {
+	ctx.SlackClient = slack.New(ctx.SlackAPIKey)
+	logger := log.New(os.Stdout, "slack: ", log.Lshortfile|log.LstdFlags)
+	slack.SetLogger(logger)
+	ctx.SlackClient.SetDebug(false)
+	rtm := ctx.SlackClient.NewRTM()
+	ctx.SlackRTM = rtm
+	go rtm.ManageConnection()
+	log.Print("Starting Slack client")
+	// Wait until the websocket is connected, then print client info
+	var info *slack.Info
+	// FIXME tune the timeout to a value that makes sense
+	timeout := 10 * time.Second
+	start := time.Now()
+	for {
+		if info = rtm.GetInfo(); info != nil {
+			break
+		}
+		if time.Now().After(start.Add(timeout)) {
+			return fmt.Errorf("Connection to Slack timed out after %v", timeout)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	log.Print("CLIENT INFO:")
+	log.Printf("  URL     : %v", info.URL)
+	log.Printf("  User    : %s", *info.User)
+	log.Printf("  Team    : %s", *info.Team)
+	log.Printf("  Users   : %s", info.Users)
+	log.Printf("  Channels: %s", info.Channels)
+	log.Printf("  Groups  : %s", info.Groups)
+	log.Printf("  Bots    : %s", info.Bots)
+	log.Printf("  IMs     : %s", info.IMs)
+	ctx.Nick = info.User.Name
+	if err := IrcAfterLoggingIn(ctx, rtm); err != nil {
+		return err
+	}
+	return nil
+}
+
 // IrcNickHandler is called when a NICK command is sent
 func IrcNickHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) < 1 {
 		log.Printf("Invalid NICK command args: %v", args)
 	}
-	nick := args[0]
-	// No need to handle nickname collisions, there can be multiple instances
-	// of the same user connected at the same time
-	/*
-		if _, ok := UserNicknames[nick]; ok {
-			log.Printf("Nickname %v already in use", nick)
-			// ERR_NICKNAMEINUSE
-			SendIrcNumeric(ctx, 433, fmt.Sprintf("* %s", nick), fmt.Sprintf("Nickname %s already in use", nick))
-			return
-		}
-	*/
-	UserNicknames[nick] = ctx
-	log.Printf("Setting nickname for %v to %v", ctx.Conn.RemoteAddr(), nick)
-	ctx.Nick = nick
+	// The nickname cannot be changed here. Just set it to whatever Slack says
+	// you are.
 	if ctx.SlackClient == nil {
-		ctx.SlackClient = slack.New(ctx.SlackAPIKey)
-		logger := log.New(os.Stdout, "slack: ", log.Lshortfile|log.LstdFlags)
-		slack.SetLogger(logger)
-		ctx.SlackClient.SetDebug(false)
-		rtm := ctx.SlackClient.NewRTM()
-		go rtm.ManageConnection()
-		log.Print("Started Slack client")
-		if err := IrcAfterLoggingIn(ctx, rtm); err != nil {
-			log.Print(err)
+		if err := connectToSlack(ctx); err != nil {
+			log.Printf("Error: cannot connect to Slack: %v", err)
+			// close the IRC connection to the client
+			ctx.Conn.Close()
 		}
 	}
+	// ctx.SlackRTM.GetInfo() should not be `nil` at this points. If it is, it's ok
+	// to panic here
+	ctx.Nick = ctx.SlackRTM.GetInfo().User.Name
+	if args[0] != ctx.Nick {
+		// the client is trying to use a different nickname, let's tell them
+		// they can't.
+		// RPL_SAVENICK
+		SendIrcNumeric(
+			ctx, 43, args[0],
+			fmt.Sprintf("Your nickname is %s and cannot be changed", ctx.Nick),
+		)
+	}
+	log.Printf("Setting nickname for %v to %v", ctx.Conn.RemoteAddr(), ctx.Nick)
 }
 
 // IrcUserHandler is called when a USER command is sent
@@ -306,7 +342,6 @@ func IrcUserHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		log.Printf("Invalid USER command args: %s", args)
 	}
 	log.Printf("Contexts: %v", UserContexts)
-	log.Printf("Nicknames: %v", UserNicknames)
 	// TODO implement `mode` as per https://tools.ietf.org/html/rfc2812#section-3.1.3
 	username, _, _ := args[0], args[1], args[2]
 	ctx.UserName = username

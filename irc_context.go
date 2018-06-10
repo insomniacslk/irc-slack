@@ -16,6 +16,7 @@ type IrcContext struct {
 	UserName       string
 	RealName       string
 	SlackClient    *slack.Client
+	SlackRTM       *slack.RTM
 	SlackAPIKey    string
 	SlackConnected bool
 	ServerName     string
@@ -118,6 +119,5 @@ func (ic IrcContext) UserIDsToNames(userIDs ...string) []string {
 
 // Maps of user contexts and nicknames
 var (
-	UserContexts  = map[net.Addr]*IrcContext{}
-	UserNicknames = map[string]*IrcContext{}
+	UserContexts = map[net.Addr]*IrcContext{}
 )
