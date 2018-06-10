@@ -11,9 +11,9 @@ import (
 
 // IrcContext holds the client context information
 type IrcContext struct {
-	Conn           *net.TCPConn
-	Nick           string
-	UserName       string
+	Conn *net.TCPConn
+	User *slack.User
+	// TODO make RealName a function
 	RealName       string
 	SlackClient    *slack.Client
 	SlackRTM       *slack.RTM
@@ -23,6 +23,23 @@ type IrcContext struct {
 	Channels       map[string]Channel
 	ChanMutex      *sync.Mutex
 	Users          []slack.User
+}
+
+// Nick returns the nickname of the user, if known
+func (ic *IrcContext) Nick() string {
+	if ic.User == nil {
+		return "<unknown>"
+	}
+	return ic.User.Name
+}
+
+// UserName returns the user's name. Currently this is equivalent to the user's
+// Slack ID
+func (ic *IrcContext) UserName() string {
+	if ic.User == nil {
+		return "<unknown>"
+	}
+	return ic.User.ID
 }
 
 // GetUsers returns a list of users of the Slack team the context is connected
@@ -73,25 +90,15 @@ func (ic *IrcContext) GetUserInfoByName(username string) *slack.User {
 
 // UserID returns the user's Slack ID
 func (ic IrcContext) UserID() string {
-	user := ic.GetUserInfoByName(ic.Nick)
-	if user == nil {
-		return ""
+	if ic.User == nil {
+		return "<unknown>"
 	}
-	return user.ID
+	return ic.User.ID
 }
 
 // Mask returns the IRC mask for the current user
 func (ic IrcContext) Mask() string {
-	var username string
-	if ic.UserName == "" {
-		user := ic.GetUserInfo(ic.Nick)
-		if user == nil {
-			username = "unknown"
-		} else {
-			username = user.ID
-		}
-	}
-	return fmt.Sprintf("%v!%v@%v", ic.Nick, username, ic.Conn.RemoteAddr().(*net.TCPAddr).IP)
+	return fmt.Sprintf("%v!%v@%v", ic.Nick(), ic.UserName(), ic.Conn.RemoteAddr().(*net.TCPAddr).IP)
 }
 
 // UserIDsToNames returns a list of user names corresponding to a list of user
