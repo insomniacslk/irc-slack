@@ -335,13 +335,9 @@ func IrcUserHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		log.Print("Empty nickname!")
 		return
 	}
-	if len(args) < 3 {
-		log.Printf("Invalid USER command args: %s", args)
-	}
-	log.Printf("Contexts: %v", UserContexts)
-	// TODO implement `mode` as per https://tools.ietf.org/html/rfc2812#section-3.1.3
-	username, _, _ := args[0], args[1], args[2]
-	ctx.UserName = username
+	// ignore the user-specified username. Will use the Slack ID instead
+	ctx.UserName = ctx.SlackRTM.GetInfo().User.ID
+	// TODO get user info and set the real name with that info
 	ctx.RealName = trailing
 }
 
