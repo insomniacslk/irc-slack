@@ -297,10 +297,7 @@ func connectToSlack(ctx *IrcContext) error {
 	log.Printf("  Bots    : %s", info.Bots)
 	log.Printf("  IMs     : %s", info.IMs)
 	ctx.Nick = info.User.Name
-	if err := IrcAfterLoggingIn(ctx, rtm); err != nil {
-		return err
-	}
-	return nil
+	return IrcAfterLoggingIn(ctx, rtm)
 }
 
 // IrcNickHandler is called when a NICK command is sent
