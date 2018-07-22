@@ -422,14 +422,20 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid JOIN command")
 		return
 	}
-	channame := args[0]
-	ch, err := ctx.SlackClient.JoinChannel(channame)
-	if err != nil {
-		log.Printf("Cannot join channel %s: %v", channame, err)
-		return
+	// Because it is possible for an IRC Client to join multiple channels
+	// via a multi join (e.g. /join #chan1,#chan2,#chan3) the argument
+	// needs to be splitted by commas and each channel needs to be joined
+	// separately.
+	channames := strings.Split(args[0], ",")
+	for _, channame := range channames {
+		ch, err := ctx.SlackClient.JoinChannel(channame)
+		if err != nil {
+			log.Printf("Cannot join channel %s: %v", channame, err)
+			continue
+		}
+		log.Printf("Joined channel %s", ch.Name)
+		go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, ch.Members, true)
 	}
-	log.Printf("Joined channel %s", ch.Name)
-	go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, ch.Members, true)
 }
 
 // IrcPartHandler is called when a JOIN command is sent
