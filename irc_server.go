@@ -38,6 +38,7 @@ var IrcCommandHandlers = map[string]IrcCommandHandler{
 	"WHOIS":   IrcWhoisHandler,
 	"JOIN":    IrcJoinHandler,
 	"PART":    IrcPartHandler,
+	"TOPIC":   IrcTopicHandler,
 }
 
 var (
@@ -388,6 +389,37 @@ func IrcPassHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		return
 	}
 	ctx.SlackAPIKey = args[0]
+}
+
+// IrcTopicHandler is called when a TOPIC command (TOPIC <channel> [<topic>]) is sent
+func IrcTopicHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
+	if len(args) < 1 {
+		// ERR_NEEDMOREPARAMS
+		SendIrcNumeric(ctx, 461, ctx.Nick(), "TOPIC :Not enough parameters")
+		return
+	}
+	channame := args[0]
+	if strings.HasPrefix(channame, "#") {
+		channame = channame[1:]
+	}
+	chantopic := trailing
+	channel := ctx.GetChannelInfoByName(channame)
+	// Disallow a user to change the topic of a channel
+	// for which the user isn't a member.
+	if _, found := ctx.Channels[channame]; channel == nil || !found {
+		// ERR_NOTONCHANNEL
+		SendIrcNumeric(ctx, 442, ctx.Nick(), fmt.Sprintf("%s :You're not on that channel", args[0]))
+		return
+	}
+	// TODO Check if user requires 'chanop' privileges to change the topic (ERR_CHANOPRIVSNEEDED)
+	topic, err := ctx.SlackClient.SetChannelTopic(channel.ID, chantopic)
+	if err != nil {
+		// RPL_NOTOPIC
+		SendIrcNumeric(ctx, 331, ctx.Nick(), fmt.Sprintf("%s :No topic is set", args[0]))
+		return
+	}
+	//RPL_TOPIC
+	SendIrcNumeric(ctx, 332, ctx.Nick(), fmt.Sprintf("%s :%s", args[0], topic))
 }
 
 // IrcWhoisHandler is called when a WHOIS command is sent
