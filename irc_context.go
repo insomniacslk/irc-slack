@@ -23,6 +23,7 @@ type IrcContext struct {
 	Channels       map[string]Channel
 	ChanMutex      *sync.Mutex
 	Users          []slack.User
+	SlackChannels  []slack.Channel
 }
 
 // Nick returns the nickname of the user, if known
@@ -94,6 +95,52 @@ func (ic IrcContext) UserID() string {
 		return "<unknown>"
 	}
 	return ic.User.ID
+}
+
+// GetChannels returns a list of channels the context is connected
+// to
+func (ic *IrcContext) GetChannels(refresh bool) []slack.Channel {
+	if refresh || ic.SlackChannels == nil || len(ic.SlackChannels) == 0 {
+		channels, err := ic.SlackClient.GetChannels(true)
+		if err != nil {
+			log.Printf("Failed to get channels: %v", err)
+			return nil
+		}
+		ic.SlackChannels = channels
+		log.Printf("Fetched %v channels", len(channels))
+	}
+	return ic.SlackChannels
+}
+
+// GetChannelInfo returns a slack.Channel instance from a given channel ID, or nil if
+// no channel with that ID was found
+func (ic *IrcContext) GetChannelInfo(channelID string) *slack.Channel {
+	channels := ic.GetChannels(false)
+	if channels == nil || len(channels) == 0 {
+		return nil
+	}
+	// XXX this may be slow, convert user list to map?
+	for _, channel := range channels {
+		if channel.ID == channelID {
+			return &channel
+		}
+	}
+	return nil
+}
+
+// GetChannelInfoByName returns a slack.Channel instance from a given channel name, or
+// nil if no channel with that name was found
+func (ic *IrcContext) GetChannelInfoByName(channame string) *slack.Channel {
+	channels := ic.GetChannels(false)
+	if channels == nil || len(channels) == 0 {
+		return nil
+	}
+	for _, channel := range channels {
+		if channel.Name == channame {
+			return &channel
+		}
+	}
+	return nil
 }
 
 // Mask returns the IRC mask for the current user
