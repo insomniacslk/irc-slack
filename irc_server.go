@@ -179,7 +179,11 @@ func joinChannels(ctx *IrcContext) error {
 				return fmt.Errorf("GetConversations: exceeded the maximum number of attempts (%d) with the Slack API", MaxSlackAPIAttempts)
 			}
 			log.Printf("GetConversations: attempt #%d, nextCursor=%s", attempt, nextCursor)
-			chans, nextCursor, err = ctx.SlackClient.GetConversations(&slack.GetConversationsParameters{Cursor: nextCursor})
+			params := slack.GetConversationsParameters{
+				Types:  []string{"public_channel", "private_channel"},
+				Cursor: nextCursor,
+			}
+			chans, nextCursor, err = ctx.SlackClient.GetConversations(&params)
 			if err != nil {
 				log.Printf("Err: %v", err)
 				if rlErr, ok := err.(*slack.RateLimitedError); ok {
