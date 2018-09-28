@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"html"
 	"log"
@@ -269,6 +270,21 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 	text := trailing
 	params := slack.NewPostMessageParameters()
 	params.AsUser = true
+	if strings.HasPrefix(text, "\x01ACTION ") && strings.HasSuffix(text, "\x01") {
+		// strip off the ACTION and \x01 wrapper
+		text = text[len("\x01ACTION ") : len(text)-1]
+		// SendMessage is more versatile than PostMessage, and allows for more
+		// control, like sending a /me message
+		ctx.SlackClient.SendMessageContext(
+			context.Background(),
+			target,
+			slack.MsgOptionText(text, params.EscapeText),
+			slack.MsgOptionAttachments(params.Attachments...),
+			slack.MsgOptionPostMessageParameters(params),
+			slack.MsgOptionMeMessage(),
+		)
+		return
+	}
 	ctx.SlackClient.PostMessage(target, text, params)
 }
 
