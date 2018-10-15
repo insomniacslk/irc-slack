@@ -270,10 +270,22 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 
 	opts := []slack.MsgOption{}
 	if strings.HasPrefix(text, "\x01ACTION ") && strings.HasSuffix(text, "\x01") {
+		// this is a MeMessage
 		// strip off the ACTION and \x01 wrapper
 		text = text[len("\x01ACTION ") : len(text)-1]
-		// state that this is a MeMessage
-		opts = append(opts, slack.MsgOptionMeMessage())
+		/*
+		 * workaround: I believe that there is an issue with the
+		 * slack API for the method chat.meMessage . Until this
+		 * is clarified, I will emulate a "me message" using a
+		 * simple italic formatting for the message.
+		 * See https://github.com/insomniacslk/irc-slack/pull/39
+		 */
+		// TODO once clarified the issue, restore the
+		//      MsgOptionMeMessage, remove the MsgOptionAsUser,
+		//      and remove the italic text
+		//opts = append(opts, slack.MsgOptionMeMessage())
+		text = "_" + text + "_"
+		opts = append(opts, slack.MsgOptionAsUser(true))
 	} else {
 		opts = append(opts, slack.MsgOptionAsUser(true))
 	}
