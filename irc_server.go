@@ -268,16 +268,17 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 	}
 	text := trailing
 
-	opts := []slack.MsgOption{
-		slack.MsgOptionAsUser(true),
-	}
+	opts := []slack.MsgOption{}
 	if strings.HasPrefix(text, "\x01ACTION ") && strings.HasSuffix(text, "\x01") {
 		// strip off the ACTION and \x01 wrapper
 		text = text[len("\x01ACTION ") : len(text)-1]
 		// state that this is a MeMessage
 		opts = append(opts, slack.MsgOptionMeMessage())
+	} else {
+		opts = append(opts, slack.MsgOptionAsUser(true))
 	}
 	opts = append(opts, slack.MsgOptionText(text, false))
+
 	ctx.SlackClient.PostMessage(target, opts...)
 }
 
