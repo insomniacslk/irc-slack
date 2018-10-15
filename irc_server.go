@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"html"
 	"log"
@@ -268,31 +267,23 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		target = "@" + target
 	}
 	text := trailing
-	params := slack.NewPostMessageParameters()
-	params.AsUser = true
+
+	opts := []slack.MsgOption{
+		slack.MsgOptionAsUser(true),
+	}
 	if strings.HasPrefix(text, "\x01ACTION ") && strings.HasSuffix(text, "\x01") {
 		// strip off the ACTION and \x01 wrapper
 		text = text[len("\x01ACTION ") : len(text)-1]
-		// SendMessage is more versatile than PostMessage, and allows for more
-		// control, like sending a /me message
-		ctx.SlackClient.SendMessageContext(
-			context.Background(),
-			target,
-			slack.MsgOptionText(text, params.EscapeText),
-			slack.MsgOptionAttachments(params.Attachments...),
-			slack.MsgOptionPostMessageParameters(params),
-			slack.MsgOptionMeMessage(),
-		)
-		return
+		// state that this is a MeMessage
+		opts = append(opts, slack.MsgOptionMeMessage())
 	}
-	ctx.SlackClient.PostMessage(target, text, params)
+	opts = append(opts, slack.MsgOptionText(text, false))
+	ctx.SlackClient.PostMessage(target, opts...)
 }
 
 func connectToSlack(ctx *IrcContext) error {
-	ctx.SlackClient = slack.New(ctx.SlackAPIKey)
 	logger := log.New(os.Stdout, "slack: ", log.Lshortfile|log.LstdFlags)
-	slack.SetLogger(logger)
-	ctx.SlackClient.SetDebug(false)
+	ctx.SlackClient = slack.New(ctx.SlackAPIKey, slack.OptionDebug(false), slack.OptionLog(logger))
 	rtm := ctx.SlackClient.NewRTM()
 	ctx.SlackRTM = rtm
 	go rtm.ManageConnection()
