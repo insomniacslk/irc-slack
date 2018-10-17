@@ -5,6 +5,7 @@ package main
 type Channel struct {
 	Members []string
 	Topic   string
+	ID      string
 	// Slack groups are different from channels. Here I try to uniform them for
 	// IRC, but I still need to know which is which to use the right API calls.
 	IsGroup bool

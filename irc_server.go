@@ -94,7 +94,7 @@ func SendIrcNumeric(ctx *IrcContext, code int, args, desc string) error {
 
 // IrcSendChanInfoAfterJoin sends channel information to the user about a joined
 // channel.
-func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, topic string, members []string, isGroup bool) {
+func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, id, topic string, members []string, isGroup bool) {
 	// TODO wrap all these Conn.Write into a function
 	ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), name)))
 	// RPL_TOPIC
@@ -104,7 +104,7 @@ func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, topic string, members []str
 	// RPL_ENDOFNAMES
 	SendIrcNumeric(ctx, 366, fmt.Sprintf("%s #%s", ctx.Nick(), name), "End of NAMES list")
 	ctx.ChanMutex.Lock()
-	ctx.Channels[name] = Channel{Topic: topic, Members: members, IsGroup: isGroup}
+	ctx.Channels[name] = Channel{Topic: topic, Members: members, ID: id, IsGroup: isGroup}
 	ctx.ChanMutex.Unlock()
 }
 
@@ -158,7 +158,7 @@ func join(ctx *IrcContext, id, name, topic string) error {
 	log.Printf(info)
 	// the channels are already joined, notify the IRC client of their
 	// existence
-	go IrcSendChanInfoAfterJoin(ctx, name, topic, members, false)
+	go IrcSendChanInfoAfterJoin(ctx, name, id, topic, members, false)
 	return nil
 }
 
@@ -270,6 +270,22 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 
 	opts := []slack.MsgOption{}
 	if strings.HasPrefix(text, "\x01ACTION ") && strings.HasSuffix(text, "\x01") {
+		// The Slack API has a bug, where a chat.meMessage is
+		// documented to accept a channel name or ID, but actually
+		// only the channel ID will work. So until this is fixed,
+		// resolve the channel ID for chat.meMessage .
+		// TODO revert this when the bug in the Slack API is fixed
+		key := target
+		if strings.HasPrefix(target, "#") {
+			key = target[1:]
+		}
+		if ch, ok := ctx.Channels[key]; !ok {
+			log.Printf("Error: unknown channel ID for %s", key)
+			return
+		} else {
+			target = ch.ID
+		}
+
 		// this is a MeMessage
 		// strip off the ACTION and \x01 wrapper
 		text = text[len("\x01ACTION ") : len(text)-1]
@@ -458,7 +474,7 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 			continue
 		}
 		log.Printf("Joined channel %s", ch.Name)
-		go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.Topic.Value, ch.Members, true)
+		go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.ID, ch.Topic.Value, ch.Members, true)
 	}
 }
 
