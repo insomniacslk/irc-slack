@@ -279,12 +279,12 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		if strings.HasPrefix(target, "#") {
 			key = target[1:]
 		}
-		if ch, ok := ctx.Channels[key]; !ok {
+		ch, ok := ctx.Channels[key]
+		if !ok {
 			log.Printf("Error: unknown channel ID for %s", key)
 			return
-		} else {
-			target = ch.ID
 		}
+		target = ch.ID
 
 		// this is a MeMessage
 		// strip off the ACTION and \x01 wrapper
