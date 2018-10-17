@@ -115,10 +115,16 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				continue
 			}
 			// handle multi-line messages
+			var linePrefix, lineSuffix string
+			if ev.Msg.SubType == "me_message" {
+				// handle /me messages
+				linePrefix = "\x01ACTION "
+				lineSuffix = "\x01"
+			}
 			for _, line := range strings.Split(text, "\n") {
-				privmsg := fmt.Sprintf(":%v!%v@%v PRIVMSG %v :%v\r\n",
+				privmsg := fmt.Sprintf(":%v!%v@%v PRIVMSG %v :%s%s%s\r\n",
 					name, ev.Msg.User, ctx.ServerName,
-					channame, line,
+					channame, linePrefix, line, lineSuffix,
 				)
 				log.Print(privmsg)
 				ctx.Conn.Write([]byte(privmsg))

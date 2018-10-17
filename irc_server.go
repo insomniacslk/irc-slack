@@ -267,16 +267,36 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		target = "@" + target
 	}
 	text := trailing
-	params := slack.NewPostMessageParameters()
-	params.AsUser = true
-	ctx.SlackClient.PostMessage(target, text, params)
+
+	opts := []slack.MsgOption{}
+	if strings.HasPrefix(text, "\x01ACTION ") && strings.HasSuffix(text, "\x01") {
+		// this is a MeMessage
+		// strip off the ACTION and \x01 wrapper
+		text = text[len("\x01ACTION ") : len(text)-1]
+		/*
+		 * workaround: I believe that there is an issue with the
+		 * slack API for the method chat.meMessage . Until this
+		 * is clarified, I will emulate a "me message" using a
+		 * simple italic formatting for the message.
+		 * See https://github.com/insomniacslk/irc-slack/pull/39
+		 */
+		// TODO once clarified the issue, restore the
+		//      MsgOptionMeMessage, remove the MsgOptionAsUser,
+		//      and remove the italic text
+		//opts = append(opts, slack.MsgOptionMeMessage())
+		text = "_" + text + "_"
+		opts = append(opts, slack.MsgOptionAsUser(true))
+	} else {
+		opts = append(opts, slack.MsgOptionAsUser(true))
+	}
+	opts = append(opts, slack.MsgOptionText(text, false))
+
+	ctx.SlackClient.PostMessage(target, opts...)
 }
 
 func connectToSlack(ctx *IrcContext) error {
-	ctx.SlackClient = slack.New(ctx.SlackAPIKey)
 	logger := log.New(os.Stdout, "slack: ", log.Lshortfile|log.LstdFlags)
-	slack.SetLogger(logger)
-	ctx.SlackClient.SetDebug(false)
+	ctx.SlackClient = slack.New(ctx.SlackAPIKey, slack.OptionDebug(false), slack.OptionLog(logger))
 	rtm := ctx.SlackClient.NewRTM()
 	ctx.SlackRTM = rtm
 	go rtm.ManageConnection()
