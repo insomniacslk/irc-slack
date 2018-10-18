@@ -256,6 +256,18 @@ func IrcCapHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing 
 	}
 }
 
+// parseMentions parses mentions and converts them to the syntax that
+// Slack will parse, i.e. <@nickname>
+func parseMentions(text string) string {
+	tokens := strings.Split(text, " ")
+	for idx, token := range tokens {
+		if strings.HasPrefix(token, "@") {
+			tokens[idx] = "<" + token + ">"
+		}
+	}
+	return strings.Join(tokens, " ")
+}
+
 // IrcPrivMsgHandler is called when a PRIVMSG command is sent
 func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
@@ -305,6 +317,7 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 	} else {
 		opts = append(opts, slack.MsgOptionAsUser(true))
 	}
+	text = parseMentions(text)
 	opts = append(opts, slack.MsgOptionText(text, false))
 
 	ctx.SlackClient.PostMessage(target, opts...)
