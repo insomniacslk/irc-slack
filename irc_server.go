@@ -557,7 +557,7 @@ func IrcTopicHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 	}
 	channel, ok := ctx.Channels[channame]
 	if !ok {
-		log.Printf("IrcTopicHandler: unknown channel %s", channel)
+		log.Printf("IrcTopicHandler: unknown channel %s", channame)
 		return
 	}
 	newTopic, err := ctx.SlackClient.SetTopicOfConversation(channel.ID, topic)
