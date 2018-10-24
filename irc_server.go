@@ -38,6 +38,7 @@ var IrcCommandHandlers = map[string]IrcCommandHandler{
 	"WHOIS":   IrcWhoisHandler,
 	"JOIN":    IrcJoinHandler,
 	"PART":    IrcPartHandler,
+	"TOPIC":   IrcTopicHandler,
 }
 
 var (
@@ -540,4 +541,31 @@ func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	}
 	log.Printf("Left channel %s", channame)
 	ctx.Conn.Write([]byte(fmt.Sprintf(":%v PART #%v\r\n", ctx.Mask(), channame)))
+}
+
+// IrcTopicHandler is called when a TOPIC command is sent
+func IrcTopicHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
+	if len(args) < 1 {
+		// ERR_NEEDMOREPARAMS
+		SendIrcNumeric(ctx, 461, ctx.Nick(), "TOPIC :Not enough parameters")
+		return
+	}
+	channame := args[0]
+	topic := trailing
+	if strings.HasPrefix(channame, "#") {
+		channame = channame[1:]
+	}
+	channel, ok := ctx.Channels[channame]
+	if !ok {
+		log.Printf("IrcTopicHandler: unknown channel %s", channame)
+		return
+	}
+	newTopic, err := ctx.SlackClient.SetTopicOfConversation(channel.ID, topic)
+	if err != nil {
+		// ERR_UNKNOWNERROR
+		SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("%s :Cannot set topic: %v", channame, err))
+		return
+	}
+	// RPL_TOPIC
+	SendIrcNumeric(ctx, 332, fmt.Sprintf("%s :%s", ctx.Nick(), channame), newTopic.Topic.Value)
 }
