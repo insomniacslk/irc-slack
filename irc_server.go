@@ -221,14 +221,16 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 	// RPL_MOTDSTART
 	SendIrcNumeric(ctx, 375, ctx.Nick(), "")
 	// RPL_MOTD
-	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("This is an IRC-to-Slack gateway, written by %s <%s>.", ProjectAuthor, ProjectAuthorEmail))
-	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("More information at %s.", ProjectURL))
-	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("Slack team name: %s", ctx.SlackRTM.GetInfo().Team.Name))
-	log.Printf("Getting user info for %s (ID: %s)", ctx.Nick(), ctx.UserName())
-	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("Your user info: "))
-	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("  Name     : %s", ctx.User.Name))
-	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("  ID       : %s", ctx.User.ID))
-	SendIrcNumeric(ctx, 372, ctx.Nick(), fmt.Sprintf("  RealName : %s", ctx.User.RealName))
+	motd := func(s string) {
+		SendIrcNumeric(ctx, 372, ctx.Nick(), s)
+	}
+	motd(fmt.Sprintf("This is an IRC-to-Slack gateway, written by %s <%s>.", ProjectAuthor, ProjectAuthorEmail))
+	motd(fmt.Sprintf("More information at %s.", ProjectURL))
+	motd(fmt.Sprintf("Slack team name: %s", ctx.SlackRTM.GetInfo().Team.Name))
+	motd(fmt.Sprintf("Your user info: "))
+	motd(fmt.Sprintf("  Name     : %s", ctx.User.Name))
+	motd(fmt.Sprintf("  ID       : %s", ctx.User.ID))
+	motd(fmt.Sprintf("  RealName : %s", ctx.User.RealName))
 	// RPL_ENDOFMOTD
 	SendIrcNumeric(ctx, 376, ctx.Nick(), "")
 
@@ -463,6 +465,7 @@ func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 		SendIrcNumeric(ctx, 311, fmt.Sprintf("%s %s %s %s *", username, user.Name, user.ID, "localhost"), user.RealName)
 		// RPL_WHOISSERVER
 		SendIrcNumeric(ctx, 312, fmt.Sprintf("%s %s", username, ctx.ServerName), ctx.ServerName)
+		// TODO send RPL_WHOISCHANNELS
 		// RPL_ENDOFWHOIS
 		SendIrcNumeric(ctx, 319, ctx.Nick(), username)
 	}
