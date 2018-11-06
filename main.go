@@ -22,6 +22,7 @@ var (
 	port       = flag.Int("p", 6666, "Local port to listen on")
 	host       = flag.String("H", "127.0.0.1", "IP address to listen on")
 	serverName = flag.String("s", "", "IRC server name (i.e. the host name to send to clients)")
+	chunkSize  = flag.Int("chunk", 0, "Maximum size of a line to send to the client. Only works for certain reply types")
 )
 
 func main() {
@@ -43,6 +44,7 @@ func main() {
 	server := Server{
 		LocalAddr: &localAddr,
 		Name:      sName,
+		ChunkSize: *chunkSize,
 	}
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
