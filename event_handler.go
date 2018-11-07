@@ -81,18 +81,22 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				return
 			}
 
+			text := ev.Msg.Text
+			for _, attachment := range ev.Msg.Attachments {
+				text += attachment.Pretext + attachment.Fallback + attachment.ImageURL
+			}
+
 			log.Printf("SLACK msg from %v (%v) on %v: %v",
 				ev.Msg.User,
 				name,
 				ev.Msg.Channel,
-				ev.Msg.Text,
+				text,
 			)
-			if ev.Msg.User == "" && ev.Msg.Text == "" {
+			if ev.Msg.User == "" && text == "" {
 				log.Printf("WARNING: empty user and message: %+v", ev.Msg)
 				continue
 			}
 			// replace UIDs with user names
-			text := ev.Msg.Text
 			// replace UIDs with nicknames
 			text = rxSlackUser.ReplaceAllStringFunc(text, func(subs string) string {
 				uid := subs[2 : len(subs)-1]
