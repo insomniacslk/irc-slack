@@ -41,6 +41,51 @@ var IrcCommandHandlers = map[string]IrcCommandHandler{
 	"TOPIC":   IrcTopicHandler,
 }
 
+// IrcNumericsSafeToChunk is a list of IRC numeric replies that are safe
+// to chunk. As per RFC2182, the maximum message size is 512, including
+// newlines. Sending longer lines breaks some clients like ZNC. See
+// https://github.com/insomniacslk/irc-slack/issues/38 for background.
+// This list is meant to grow if we find more IRC numerics that are safe
+// to split.
+// Being safe to split doesn't mean that it *will* be split. The actual
+// behaviour depends on the IrcContext.ChunkSize value.
+var IrcNumericsSafeToChunk = []int{
+	// RPL_WHOREPLY
+	352,
+	// RPL_NAMREPLY
+	353,
+}
+
+// SplitReply will split a reply message if necessary. See
+// IrcNumericSafeToChunk for background on why splitting.
+// The function will return a list of chunks to be sent
+// separately.
+// The first argument is the entire message to be split.
+// The second argument is the chunk size to use to determine
+// whether the message should be split. Any value equal or above
+// 512 will cause splitting. Any other value will return the
+// unmodified string as only item of the list.
+func SplitReply(preamble, msg string, chunksize int) []string {
+	if chunksize < 512 || chunksize >= len(preamble)+len(msg)+2 {
+		// return the whole string as one chunk
+		return []string{preamble + msg + "\r\n"}
+	}
+	log.Printf("Splitting reply in %d-byte chunks", chunksize)
+	// Split and build a string until it's long enough to fit the
+	// chunk. Splitting ignores multiple contiguous white-spaces.
+	// We assume this is safe (unless we find out it's not).
+	// Additionally, squeezing multiple contiguous spaces could
+	// render the final reply shorter than the chunk size, but we
+	// don't care here.
+	maxLen := chunksize - len(preamble) - 2
+	lines := WordWrap(strings.Fields(msg), maxLen)
+	reply := make([]string, len(lines))
+	for idx, line := range lines {
+		reply[idx] = preamble + line + "\r\n"
+	}
+	return reply
+}
+
 var (
 	rxSlackUrls = regexp.MustCompile("<[^>]+>?")
 	rxSlackUser = regexp.MustCompile("<@[UW][A-Z0-9]+>")
@@ -87,10 +132,17 @@ func ExpandText(text string) string {
 
 // SendIrcNumeric sends a numeric code message to the recipient
 func SendIrcNumeric(ctx *IrcContext, code int, args, desc string) error {
-	reply := fmt.Sprintf(":%s %03d %s :%s\r\n", ctx.ServerName, code, args, desc)
-	log.Printf("Sending numeric reply: %s", reply)
-	_, err := ctx.Conn.Write([]byte(reply))
-	return err
+	preamble := fmt.Sprintf(":%s %03d %s :", ctx.ServerName, code, args)
+	//reply := fmt.Sprintf(":%s %03d %s :%s\r\n", ctx.ServerName, code, args, desc)
+	chunks := SplitReply(preamble, desc, ctx.ChunkSize)
+	for _, chunk := range chunks {
+		log.Printf("Sending numeric reply: %s", chunk)
+		_, err := ctx.Conn.Write([]byte(chunk))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // IrcSendChanInfoAfterJoin sends channel information to the user about a joined

@@ -15,6 +15,7 @@ type Server struct {
 	LocalAddr   net.Addr
 	Listener    *net.TCPListener
 	SlackAPIKey string
+	ChunkSize   int
 }
 
 // Start runs the IRC server
@@ -99,7 +100,7 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 	}
 	ctx, ok := UserContexts[conn.RemoteAddr()]
 	if !ok || ctx == nil {
-		ctx = &IrcContext{Conn: conn, ServerName: s.Name, SlackAPIKey: s.SlackAPIKey}
+		ctx = &IrcContext{Conn: conn, ServerName: s.Name, SlackAPIKey: s.SlackAPIKey, ChunkSize: s.ChunkSize}
 		UserContexts[conn.RemoteAddr()] = ctx
 	}
 	handler(ctx, prefix, cmd, args, trailing)

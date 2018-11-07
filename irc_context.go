@@ -23,6 +23,7 @@ type IrcContext struct {
 	Channels       map[string]Channel
 	ChanMutex      *sync.Mutex
 	Users          []slack.User
+	ChunkSize      int
 }
 
 // Nick returns the nickname of the user, if known
@@ -115,7 +116,7 @@ func (ic IrcContext) UserIDsToNames(userIDs ...string) []string {
 		user, ok := usersMap[uid]
 		if !ok {
 			names = append(names, uid)
-			log.Printf("Could not fetch user %s", uid)
+			log.Printf("Could not fetch user %s, not in user map", uid)
 		} else {
 			names = append(names, user.Name)
 			log.Printf("Fetched info for user ID %s: %s", uid, user.Name)

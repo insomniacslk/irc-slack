@@ -8,7 +8,6 @@ import (
 
 // TODO handle expired Slack RTM sessions (e.g. after standby/resume)
 // TODO better handling of QUIT
-// TODO set TOPIC - SetChannelTopic
 // TODO handle channel/user MODE. Set it to +s on Slack groups (private channels)
 // TODO handle /me with the me_message subtype
 // TODO handle INVITE - InviteUserToChannel
@@ -22,6 +21,7 @@ var (
 	port       = flag.Int("p", 6666, "Local port to listen on")
 	host       = flag.String("H", "127.0.0.1", "IP address to listen on")
 	serverName = flag.String("s", "", "IRC server name (i.e. the host name to send to clients)")
+	chunkSize  = flag.Int("chunk", 512, "Maximum size of a line to send to the client. Only works for certain reply types")
 )
 
 func main() {
@@ -43,6 +43,7 @@ func main() {
 	server := Server{
 		LocalAddr: &localAddr,
 		Name:      sName,
+		ChunkSize: *chunkSize,
 	}
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
