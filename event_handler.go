@@ -40,26 +40,26 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				if err != nil {
 					// ERR_UNKNOWNERROR
 					SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Cannot get conversation info for %s", ev.Msg.Channel))
-					return
+					continue
 				}
 				// we expect only two members in a direct message. Raise an
 				// error if not.
 				if len(users) != 2 {
 					// ERR_UNKNOWNERROR
 					SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Exactly two users expected in direct message, got %d (conversation ID: %s)", len(users), ev.Msg.Channel))
-					return
+					continue
 
 				}
 				// of the two users, one is me. Otherwise fail
 				if ctx.UserID() == "" {
 					// ERR_UNKNOWNERROR
 					SendIrcNumeric(ctx, 400, ctx.UserID(), "Cannot get my own user ID")
-					return
+					continue
 				}
 				if users[0] != ctx.UserID() && users[1] != ctx.UserID() {
 					// ERR_UNKNOWNERROR
 					SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Got a direct message where I am not part of the members list (members: %s)", strings.Join(users, ", ")))
-					return
+					continue
 				}
 				var recipientID string
 				if users[0] == ctx.UserID() {
@@ -73,12 +73,12 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				if nickname == nil {
 					// ERR_UNKNOWNERROR
 					SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Unknown destination user ID %s for direct message %s", recipientID, ev.Msg.Channel))
-					return
+					continue
 				}
 				channame = nickname.Name
 			} else {
 				log.Printf("Unknown recipient ID: %s", ev.Msg.Channel)
-				return
+				continue
 			}
 
 			log.Printf("SLACK msg from %v (%v) on %v: %v",
