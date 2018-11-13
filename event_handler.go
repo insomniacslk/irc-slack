@@ -83,10 +83,18 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 
 			text := ev.Msg.Text
 			for _, attachment := range ev.Msg.Attachments {
-				text += attachment.Pretext + attachment.Fallback + attachment.ImageURL
+				if attachment.Pretext != "" {
+					text += "\n" +attachment.Pretext
+				}
+				if attachment.Fallback != "" {
+					text += "\n" +attachment.Fallback
+				}
+				if attachment.ImageURL != "" {
+					text += "\n" + attachment.ImageURL
+				}
 			}
 			for _, file := range ev.Msg.Files {
-				text += file.URLPrivate
+				text += " " + file.URLPrivate
 			}
 
 			log.Printf("SLACK msg from %v (%v) on %v: %v",
