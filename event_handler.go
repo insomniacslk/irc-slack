@@ -8,6 +8,16 @@ import (
 	"github.com/nlopes/slack"
 )
 
+func joinText(first string, second string, divider string) string {
+	if first == "" {
+		return second
+	}
+	if second == "" {
+		return first
+	}
+	return first + divider + second
+}
+
 func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 	log.Print("Started Slack event listener")
 	for msg := range rtm.IncomingEvents {
@@ -83,20 +93,16 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 
 			text := ev.Msg.Text
 			for _, attachment := range ev.Msg.Attachments {
-				if attachment.Pretext != "" {
-					text += "\n" + attachment.Pretext
-				}
+				text = joinText(text, attachment.Pretext, "\n")
 				if attachment.Text != "" {
-					text += "\n" + attachment.Text
-				} else if attachment.Fallback != "" {
-					text += "\n" + attachment.Fallback
+					text = joinText(text, attachment.Text, "\n")
+				} else {
+					text = joinText(text, attachment.Fallback, "\n")
 				}
-				if attachment.ImageURL != "" {
-					text += "\n" + attachment.ImageURL
-				}
+				text = joinText(text, attachment.ImageURL, "\n")
 			}
 			for _, file := range ev.Msg.Files {
-				text += " " + file.URLPrivate
+				text = joinText(text, file.URLPrivate, " ")
 			}
 
 			log.Printf("SLACK msg from %v (%v) on %v: %v",
