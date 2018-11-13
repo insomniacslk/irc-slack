@@ -84,10 +84,10 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			text := ev.Msg.Text
 			for _, attachment := range ev.Msg.Attachments {
 				if attachment.Pretext != "" {
-					text += "\n" +attachment.Pretext
+					text += "\n" + attachment.Pretext
 				}
 				if attachment.Fallback != "" {
-					text += "\n" +attachment.Fallback
+					text += "\n" + attachment.Fallback
 				}
 				if attachment.ImageURL != "" {
 					text += "\n" + attachment.ImageURL
