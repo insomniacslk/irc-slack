@@ -86,7 +86,9 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				if attachment.Pretext != "" {
 					text += "\n" + attachment.Pretext
 				}
-				if attachment.Fallback != "" {
+				if attachment.Text != "" {
+					text += "\n" + attachment.Text
+				} else if attachment.Fallback != "" {
 					text += "\n" + attachment.Fallback
 				}
 				if attachment.ImageURL != "" {
