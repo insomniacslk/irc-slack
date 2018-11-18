@@ -316,7 +316,13 @@ func IrcCapHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing 
 func parseMentions(text string) string {
 	tokens := strings.Split(text, " ")
 	for idx, token := range tokens {
-		if strings.HasPrefix(token, "@") {
+		if token == "@here" {
+			tokens[idx] = "<!here>"
+		} else if token == "@channel" {
+			tokens[idx] = "<!channel>"
+		} else if token == "@everyone" {
+			tokens[idx] = "<!everyone>"
+		} else if strings.HasPrefix(token, "@") {
 			tokens[idx] = "<" + token + ">"
 		}
 	}
