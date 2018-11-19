@@ -8,6 +8,16 @@ import (
 	"github.com/nlopes/slack"
 )
 
+func joinText(first string, second string, divider string) string {
+	if first == "" {
+		return second
+	}
+	if second == "" {
+		return first
+	}
+	return first + divider + second
+}
+
 func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 	log.Print("Started Slack event listener")
 	for msg := range rtm.IncomingEvents {
@@ -81,18 +91,31 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				continue
 			}
 
+			text := ev.Msg.Text
+			for _, attachment := range ev.Msg.Attachments {
+				text = joinText(text, attachment.Pretext, "\n")
+				if attachment.Text != "" {
+					text = joinText(text, attachment.Text, "\n")
+				} else {
+					text = joinText(text, attachment.Fallback, "\n")
+				}
+				text = joinText(text, attachment.ImageURL, "\n")
+			}
+			for _, file := range ev.Msg.Files {
+				text = joinText(text, file.URLPrivate, " ")
+			}
+
 			log.Printf("SLACK msg from %v (%v) on %v: %v",
 				ev.Msg.User,
 				name,
 				ev.Msg.Channel,
-				ev.Msg.Text,
+				text,
 			)
-			if ev.Msg.User == "" && ev.Msg.Text == "" {
+			if ev.Msg.User == "" && text == "" {
 				log.Printf("WARNING: empty user and message: %+v", ev.Msg)
 				continue
 			}
 			// replace UIDs with user names
-			text := ev.Msg.Text
 			// replace UIDs with nicknames
 			text = rxSlackUser.ReplaceAllStringFunc(text, func(subs string) string {
 				uid := subs[2 : len(subs)-1]
