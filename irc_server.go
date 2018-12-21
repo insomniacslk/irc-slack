@@ -258,7 +258,7 @@ func joinChannels(ctx *IrcContext) error {
 	}
 	for _, ch := range channels {
 		if ch.IsMember {
-			if err := join(ctx, ch.ID, ch.Name, ch.Topic.Value); err != nil {
+			if err := join(ctx, ch.ID, ch.Name, ch.Purpose.Value); err != nil {
 				return err
 			}
 		}
@@ -549,11 +549,11 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 			continue
 		}
 		log.Printf("Joined channel %s", ch.Name)
-		go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.ID, ch.Topic.Value, ch.Members, true)
+		go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.ID, ch.Purpose.Value, ch.Members, true)
 	}
 }
 
-// IrcPartHandler is called when a JOIN command is sent
+// IrcPartHandler is called when a PART command is sent
 func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
 		// ERR_UNKNOWNERROR
@@ -618,12 +618,12 @@ func IrcTopicHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 		log.Printf("IrcTopicHandler: unknown channel %s", channame)
 		return
 	}
-	newTopic, err := ctx.SlackClient.SetTopicOfConversation(channel.ID, topic)
+	newTopic, err := ctx.SlackClient.SetPurposeOfConversation(channel.ID, topic)
 	if err != nil {
 		// ERR_UNKNOWNERROR
 		SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("%s :Cannot set topic: %v", channame, err))
 		return
 	}
 	// RPL_TOPIC
-	SendIrcNumeric(ctx, 332, fmt.Sprintf("%s :%s", ctx.Nick(), channame), newTopic.Topic.Value)
+	SendIrcNumeric(ctx, 332, fmt.Sprintf("%s :%s", ctx.Nick(), channame), newTopic.Purpose.Value)
 }
