@@ -4,10 +4,18 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/nlopes/slack"
 )
+
+// SlackPostMessage represents a message sent to slack api
+type SlackPostMessage struct {
+	Target string
+	Text   string
+}
 
 // IrcContext holds the client context information
 type IrcContext struct {
@@ -24,6 +32,7 @@ type IrcContext struct {
 	ChanMutex         *sync.Mutex
 	Users             []slack.User
 	ChunkSize         int
+	postMessage       chan SlackPostMessage
 	conversationCache map[string]*slack.Channel
 }
 
@@ -57,6 +66,37 @@ func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
 		log.Printf("Fetched %v users", len(users))
 	}
 	return ic.Users
+}
+
+// Start handles batching of messages to slack
+func (ic *IrcContext) Start() {
+	textBuffer := make(map[string]string)
+	timer := time.NewTimer(time.Second)
+	var message SlackPostMessage
+	for {
+		select {
+		case message = <-ic.postMessage:
+			log.Printf("Got new message %v", message)
+			textBuffer[message.Target] += message.Text + "\n"
+			timer.Reset(time.Second)
+		case <-timer.C:
+			for target, text := range textBuffer {
+				opts := []slack.MsgOption{}
+				opts = append(opts, slack.MsgOptionAsUser(true))
+				opts = append(opts, slack.MsgOptionText(strings.TrimSpace(text), false))
+				ic.SlackClient.PostMessage(target, opts...)
+			}
+			textBuffer = make(map[string]string)
+		}
+	}
+}
+
+// PostTextMessage batches all messages that should be posted to slack
+func (ic *IrcContext) PostTextMessage(target string, text string) {
+	ic.postMessage <- SlackPostMessage{
+		Target: target,
+		Text:   text,
+	}
 }
 
 // GetUserInfo returns a slack.User instance from a given user ID, or nil if

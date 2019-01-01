@@ -107,8 +107,10 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 			ServerName:        s.Name,
 			SlackAPIKey:       s.SlackAPIKey,
 			ChunkSize:         s.ChunkSize,
+			postMessage:       make(chan SlackPostMessage),
 			conversationCache: make(map[string]*slack.Channel),
 		}
+		go ctx.Start()
 		UserContexts[conn.RemoteAddr()] = ctx
 	}
 	handler(ctx, prefix, cmd, args, trailing)

@@ -345,7 +345,6 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 
 	text := trailing
 
-	opts := []slack.MsgOption{}
 	if strings.HasPrefix(text, "\x01ACTION ") && strings.HasSuffix(text, "\x01") {
 		// The Slack API has a bug, where a chat.meMessage is
 		// documented to accept a channel name or ID, but actually
@@ -375,14 +374,8 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		//      and remove the italic text
 		//opts = append(opts, slack.MsgOptionMeMessage())
 		text = "_" + text + "_"
-		opts = append(opts, slack.MsgOptionAsUser(true))
-	} else {
-		opts = append(opts, slack.MsgOptionAsUser(true))
 	}
-	text = parseMentions(text)
-	opts = append(opts, slack.MsgOptionText(text, false))
-
-	ctx.SlackClient.PostMessage(target, opts...)
+	ctx.PostTextMessage(target, parseMentions(text))
 }
 
 func connectToSlack(ctx *IrcContext) error {
