@@ -25,4 +25,5 @@ deploy:
   provider: script
   script: bash docker_push
   on:
+    tags: true
     branch: master
