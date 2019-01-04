@@ -23,10 +23,10 @@ after_success:
 
 deploy:
   - provider: script
-    script: bash docker_push
+    script: bash .travis/docker_push
     on:
       branch: master
   - provider: script
-    script: bash docker_push
+    script: bash .travis/docker_push
     on:
       tags: true
