@@ -16,7 +16,7 @@ before_install:
 
 script:
   - ./.travis/tests.sh
-  - docker build -t insomniacslk/irc-slack .
+  - docker build -t $TRAVIS_REPO_SLUG .
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
