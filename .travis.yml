@@ -2,6 +2,9 @@ language: go
 
 sudo: false
 
+services:
+  - docker
+
 go:
   - "1.8"
   - "1.9"
@@ -13,7 +16,21 @@ before_install:
 
 script:
   - ./.travis/tests.sh
+  - docker build -t $TRAVIS_REPO_SLUG .
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
+deploy:
+  - provider: script
+    skip_cleanup: true
+    script: bash .travis/docker_push
+    on:
+      go: "1.10"
+      branch: master
+  - provider: script
+    skip_cleanup: true
+    script: bash .travis/docker_push
+    on:
+      go: "1.10"
+      tags: true
