@@ -22,8 +22,11 @@ after_success:
   - bash <(curl -s https://codecov.io/bash)
 
 deploy:
-  provider: script
-  script: bash docker_push
-  on:
-    tags: true
-    branch: master
+  - provider: script
+    script: bash docker_push
+    on:
+      branch: master
+  - provider: script
+    script: bash docker_push
+    on:
+      tags: true
