@@ -2,6 +2,9 @@ language: go
 
 sudo: false
 
+services:
+  - docker
+
 go:
   - "1.8"
   - "1.9"
@@ -13,7 +16,13 @@ before_install:
 
 script:
   - ./.travis/tests.sh
+  - docker build -t insomniacslk/irc-slack .
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
+deploy:
+  provider: script
+  script: bash docker_push
+  on:
+    branch: master
