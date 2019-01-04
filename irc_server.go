@@ -339,6 +339,17 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		// Send to user instead of channel
 		target = "@" + target
 	}
+	if strings.HasPrefix(target, "#mpdm-") {
+		channel, err := ctx.SlackClient.GetConversationInfo(
+			strings.ToUpper(target[6:]),
+			false,
+		)
+		if err != nil {
+			log.Printf("Error getting channel info for %v: %v", target[6:], err)
+			return
+		}
+		target = channel.ID
+	}
 	text := trailing
 
 	opts := []slack.MsgOption{}

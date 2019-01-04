@@ -40,6 +40,8 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				if err != nil {
 					log.Printf("Error getting channel info for %v: %v", ev.Msg.Channel, err)
 					channame = "unknown"
+				} else if strings.HasPrefix(channel.Name, "mpdm-") {
+					channame = "#mpdm-" + ev.Msg.Channel
 				} else {
 					channame = "#" + channel.Name
 				}
