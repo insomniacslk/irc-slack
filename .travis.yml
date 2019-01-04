@@ -23,10 +23,12 @@ after_success:
 
 deploy:
   - provider: script
+    skip_cleanup: true
     script: bash .travis/docker_push
     on:
       branch: master
   - provider: script
+    skip_cleanup: true
     script: bash .travis/docker_push
     on:
       tags: true
