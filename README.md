@@ -27,6 +27,17 @@ go build
 
 Then configure your IRC client to connect to localhost:6666 and use a Slack legacy token as password. Get you Slack legacy token at https://api.slack.com/custom-integrations/legacy-tokens .
 
+## Run it with Docker
+
+Thanks to [halkeye](https://github.com/halkeye) you can run `irc-slack` via
+Docker. The `Dockerfile` is published on
+https://hub.docker.com/r/insomniacslk/irc-slack and will by default listen on
+`127.0.0.1:6666`. You can pull and run it with:
+
+```
+docker run insomniacslk/irc-slack
+```
+
 
 ### Connecting with irssi
 ```

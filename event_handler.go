@@ -196,6 +196,8 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			// refresh the users list
 			// FIXME also send a JOIN / PART message to the IRC client
 			ctx.GetUsers(true)
+		case *slack.ChannelJoinedEvent:
+			ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), ev.Channel.Name)))
 		default:
 			log.Printf("SLACK event: %v: %+v", msg.Type, msg.Data)
 		}
