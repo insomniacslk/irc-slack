@@ -35,7 +35,6 @@ https://hub.docker.com/r/insomniacslk/irc-slack and will by default listen on
 `127.0.0.1:6666`. You can pull and run it with:
 
 ```
-docker pull insomniacslk/irc-slack
 docker run insomniacslk/irc-slack
 ```
 
