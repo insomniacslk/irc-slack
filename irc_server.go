@@ -149,15 +149,15 @@ func SendIrcNumeric(ctx *IrcContext, code int, args, desc string) error {
 // channel.
 func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, id, topic string, members []string, isGroup bool) {
 	// TODO wrap all these Conn.Write into a function
-	ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), name)))
+	ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN %v\r\n", ctx.Mask(), name)))
 	// RPL_TOPIC
-	SendIrcNumeric(ctx, 332, fmt.Sprintf("%s #%s", ctx.Nick(), name), topic)
+	SendIrcNumeric(ctx, 332, fmt.Sprintf("%s %s", ctx.Nick(), name), topic)
 	// RPL_NAMREPLY
-	SendIrcNumeric(ctx, 353, fmt.Sprintf("%s = #%s", ctx.Nick(), name), strings.Join(ctx.UserIDsToNames(members...), " "))
+	SendIrcNumeric(ctx, 353, fmt.Sprintf("%s = %s", ctx.Nick(), name), strings.Join(ctx.UserIDsToNames(members...), " "))
 	// RPL_ENDOFNAMES
-	SendIrcNumeric(ctx, 366, fmt.Sprintf("%s #%s", ctx.Nick(), name), "End of NAMES list")
+	SendIrcNumeric(ctx, 366, fmt.Sprintf("%s %s", ctx.Nick(), name), "End of NAMES list")
 	ctx.ChanMutex.Lock()
-	ctx.Channels[name] = Channel{Topic: topic, Members: members, ID: id, IsGroup: isGroup}
+	ctx.Channels[name[1:]] = Channel{Topic: topic, Members: members, ID: id, IsGroup: isGroup}
 	ctx.ChanMutex.Unlock()
 }
 
@@ -258,7 +258,7 @@ func joinChannels(ctx *IrcContext) error {
 	}
 	for _, ch := range channels {
 		if ch.IsMember {
-			if err := join(ctx, ch.ID, ch.Name, ch.Purpose.Value); err != nil {
+			if err := join(ctx, ch.ID, "#"+ch.Name, ch.Purpose.Value); err != nil {
 				return err
 			}
 		}
@@ -335,13 +335,13 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		log.Printf("Invalid PRIVMSG command args: %v", args)
 	}
 	target := args[0]
-	if !strings.HasPrefix(target, "#") {
+	if !strings.HasPrefix(target, "#") && !strings.HasPrefix(target, "&") {
 		// Send to user instead of channel
 		target = "@" + target
 	}
-	if strings.HasPrefix(target, "#mpdm-") {
+	if strings.HasPrefix(target, "&") {
 		channel, err := ctx.SlackClient.GetConversationInfo(
-			strings.ToUpper(target[6:]),
+			strings.ToUpper(target[1:]),
 			false,
 		)
 		if err != nil {
@@ -559,8 +559,8 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 			log.Printf("Cannot join channel %s: %v", channame, err)
 			continue
 		}
-		log.Printf("Joined channel %s", ch.Name)
-		go IrcSendChanInfoAfterJoin(ctx, ch.Name, ch.ID, ch.Purpose.Value, ch.Members, true)
+		log.Printf("Joined channel %s", channame)
+		go IrcSendChanInfoAfterJoin(ctx, channame, ch.ID, ch.Purpose.Value, ch.Members, true)
 	}
 }
 

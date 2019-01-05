@@ -42,12 +42,12 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 					log.Printf("Error getting channel info for %v: %v", ev.Msg.Channel, err)
 					channame = "unknown"
 				} else if channel.IsMpIM {
-					channame = "#mpdm-" + ev.Msg.Channel
+					channame = "&" + ev.Msg.Channel
 					_, ok := ctx.Channels[channame[1:]]
 					if !ok {
 						go IrcSendChanInfoAfterJoin(
 							ctx,
-							channame[1:],
+							channame,
 							ev.Msg.Channel,
 							channel.Purpose.Value,
 							[]string{},
