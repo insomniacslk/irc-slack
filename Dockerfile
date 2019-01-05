@@ -17,6 +17,8 @@ RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /go/bin/irc-slack
 # STEP 2 build a small image
 ############################
 FROM scratch
+# Copy the ssl certs so we can talk to slack
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 # Copy our static executable.
 COPY --from=builder /go/bin/irc-slack /go/bin/irc-slack
 # Run the irc-slack binary.
