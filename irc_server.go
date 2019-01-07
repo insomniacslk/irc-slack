@@ -335,11 +335,11 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		log.Printf("Invalid PRIVMSG command args: %v", args)
 	}
 	target := args[0]
-	if !strings.HasPrefix(target, "#") && !strings.HasPrefix(target, "&") {
+	if !strings.HasPrefix(target, "#") && !strings.HasPrefix(target, "@") {
 		// Send to user instead of channel
 		target = "@" + target
 	}
-	if strings.HasPrefix(target, "&") {
+	if strings.HasPrefix(target, "@") {
 		channel, err := ctx.SlackClient.GetConversationInfo(
 			strings.ToUpper(target[1:]),
 			false,
