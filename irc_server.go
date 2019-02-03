@@ -157,7 +157,8 @@ func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, id, topic string, members [
 	// RPL_ENDOFNAMES
 	SendIrcNumeric(ctx, 366, fmt.Sprintf("%s %s", ctx.Nick(), name), "End of NAMES list")
 	ctx.ChanMutex.Lock()
-	ctx.Channels[name[1:]] = Channel{Topic: topic, Members: members, ID: id, IsGroup: isGroup}
+	ctx.Channels[name] = Channel{Topic: topic, Members: members, ID: id, IsGroup: isGroup}
+	log.Printf("Adding %s %v", name, ctx.Channels[name])
 	ctx.ChanMutex.Unlock()
 }
 
@@ -334,22 +335,14 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 	if len(args) != 1 {
 		log.Printf("Invalid PRIVMSG command args: %v", args)
 	}
-	target := args[0]
-	if !strings.HasPrefix(target, "#") && !strings.HasPrefix(target, "@") {
-		// Send to user instead of channel
-		target = "@" + target
-	}
-	if strings.HasPrefix(target, "@") {
-		channel, err := ctx.SlackClient.GetConversationInfo(
-			strings.ToUpper(target[1:]),
-			false,
-		)
-		if err != nil {
-			log.Printf("Error getting channel info for %v: %v", target[6:], err)
-			return
-		}
+	channel, ok := ctx.Channels[args[0]]
+	target := ""
+	if ok {
 		target = channel.ID
+	} else {
+		target = "@" + args[0]
 	}
+
 	text := trailing
 
 	opts := []slack.MsgOption{}
@@ -360,9 +353,6 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		// resolve the channel ID for chat.meMessage .
 		// TODO revert this when the bug in the Slack API is fixed
 		key := target
-		if strings.HasPrefix(target, "#") {
-			key = target[1:]
-		}
 		ch, ok := ctx.Channels[key]
 		if !ok {
 			log.Printf("Error: unknown channel ID for %s", key)
@@ -554,6 +544,9 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	// separately.
 	channames := strings.Split(args[0], ",")
 	for _, channame := range channames {
+		if strings.HasPrefix(channame, "&") {
+			continue
+		}
 		ch, err := ctx.SlackClient.JoinChannel(channame)
 		if err != nil {
 			log.Printf("Cannot join channel %s: %v", channame, err)
@@ -621,9 +614,6 @@ func IrcTopicHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 	}
 	channame := args[0]
 	topic := trailing
-	if strings.HasPrefix(channame, "#") {
-		channame = channame[1:]
-	}
 	channel, ok := ctx.Channels[channame]
 	if !ok {
 		log.Printf("IrcTopicHandler: unknown channel %s", channame)
