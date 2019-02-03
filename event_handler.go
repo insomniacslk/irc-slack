@@ -18,6 +18,16 @@ func joinText(first string, second string, divider string) string {
 	return first + divider + second
 }
 
+func formatMultipartyChannelName(slackChannelID string, slackChannelName string) string {
+	name := "&" + slackChannelID + "|" + slackChannelName
+	name = strings.Replace(name, "mpdm-", "", -1)
+	name = strings.Replace(name, "--", "-", -1)
+	if len(name) >= 30 {
+		return name[:29] + "…"
+	}
+	return name
+}
+
 func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 	log.Print("Started Slack event listener")
 	for msg := range rtm.IncomingEvents {
@@ -41,8 +51,8 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 					log.Printf("Error getting channel info for %v: %v", ev.Msg.Channel, err)
 					channame = "unknown"
 				} else if channel.IsMpIM {
-					channame = "@" + ev.Msg.Channel
-					_, ok := ctx.Channels[channame[1:]]
+					channame = formatMultipartyChannelName(ev.Msg.Channel, channel.Name)
+					_, ok := ctx.Channels[channame]
 					if !ok {
 						go IrcSendChanInfoAfterJoin(
 							ctx,
