@@ -36,8 +36,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			var channame string
 			if strings.HasPrefix(ev.Msg.Channel, "C") || strings.HasPrefix(ev.Msg.Channel, "G") {
 				// Channel message
-				// TODO cache channel info
-				channel, err := ctx.SlackClient.GetConversationInfo(ev.Msg.Channel, false)
+				channel, err := ctx.GetConversationInfo(ev.Msg.Channel)
 				if err != nil {
 					log.Printf("Error getting channel info for %v: %v", ev.Msg.Channel, err)
 					channame = "unknown"

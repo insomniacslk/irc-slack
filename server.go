@@ -7,6 +7,8 @@ import (
 	"log"
 	"net"
 	"strings"
+
+	"github.com/nlopes/slack"
 )
 
 // Server is the server object that exposes the Slack API with an IRC interface.
@@ -100,7 +102,13 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 	}
 	ctx, ok := UserContexts[conn.RemoteAddr()]
 	if !ok || ctx == nil {
-		ctx = &IrcContext{Conn: conn, ServerName: s.Name, SlackAPIKey: s.SlackAPIKey, ChunkSize: s.ChunkSize}
+		ctx = &IrcContext{
+			Conn:              conn,
+			ServerName:        s.Name,
+			SlackAPIKey:       s.SlackAPIKey,
+			ChunkSize:         s.ChunkSize,
+			conversationCache: make(map[string]*slack.Channel),
+		}
 		UserContexts[conn.RemoteAddr()] = ctx
 	}
 	handler(ctx, prefix, cmd, args, trailing)
