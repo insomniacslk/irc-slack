@@ -14,16 +14,17 @@ type IrcContext struct {
 	Conn *net.TCPConn
 	User *slack.User
 	// TODO make RealName a function
-	RealName       string
-	SlackClient    *slack.Client
-	SlackRTM       *slack.RTM
-	SlackAPIKey    string
-	SlackConnected bool
-	ServerName     string
-	Channels       map[string]Channel
-	ChanMutex      *sync.Mutex
-	Users          []slack.User
-	ChunkSize      int
+	RealName          string
+	SlackClient       *slack.Client
+	SlackRTM          *slack.RTM
+	SlackAPIKey       string
+	SlackConnected    bool
+	ServerName        string
+	Channels          map[string]Channel
+	ChanMutex         *sync.Mutex
+	Users             []slack.User
+	ChunkSize         int
+	conversationCache map[string]*slack.Channel
 }
 
 // Nick returns the nickname of the user, if known
@@ -123,6 +124,20 @@ func (ic IrcContext) UserIDsToNames(userIDs ...string) []string {
 		}
 	}
 	return names
+}
+
+// GetConversationInfo is cached version of slack.GetConversationInfo
+func (ic IrcContext) GetConversationInfo(conversation string) (*slack.Channel, error) {
+	c, ok := ic.conversationCache[conversation]
+	if ok {
+		return c, nil
+	}
+	c, err := ic.SlackClient.GetConversationInfo(conversation, false)
+	if err != nil {
+		return c, err
+	}
+	ic.conversationCache[conversation] = c
+	return c, nil
 }
 
 // Maps of user contexts and nicknames
