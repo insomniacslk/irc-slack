@@ -13,11 +13,13 @@ import (
 
 // Server is the server object that exposes the Slack API with an IRC interface.
 type Server struct {
-	Name        string
-	LocalAddr   net.Addr
-	Listener    *net.TCPListener
-	SlackAPIKey string
-	ChunkSize   int
+	Name                 string
+	LocalAddr            net.Addr
+	Listener             *net.TCPListener
+	SlackAPIKey          string
+	ChunkSize            int
+	FileDownloadLocation string
+	FileProxyPrefix      string
 }
 
 // Start runs the IRC server
@@ -102,12 +104,18 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 	}
 	ctx, ok := UserContexts[conn.RemoteAddr()]
 	if !ok || ctx == nil {
+		log.Printf("!!! SlackApiKey %v", s.SlackAPIKey)
 		ctx = &IrcContext{
 			Conn:              conn,
 			ServerName:        s.Name,
 			SlackAPIKey:       s.SlackAPIKey,
 			ChunkSize:         s.ChunkSize,
 			conversationCache: make(map[string]*slack.Channel),
+			FileHandler: &FileHandler{
+				SlackAPIKey:          s.SlackAPIKey,
+				FileDownloadLocation: s.FileDownloadLocation,
+				ProxyPrefix:          s.FileProxyPrefix,
+			},
 		}
 		UserContexts[conn.RemoteAddr()] = ctx
 	}

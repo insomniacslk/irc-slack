@@ -18,10 +18,12 @@ import (
 // legacy token for the desired team. See
 // https://api.slack.com/custom-integrations/legacy-tokens
 var (
-	port       = flag.Int("p", 6666, "Local port to listen on")
-	host       = flag.String("H", "127.0.0.1", "IP address to listen on")
-	serverName = flag.String("s", "", "IRC server name (i.e. the host name to send to clients)")
-	chunkSize  = flag.Int("chunk", 512, "Maximum size of a line to send to the client. Only works for certain reply types")
+	port                 = flag.Int("p", 6666, "Local port to listen on")
+	host                 = flag.String("H", "127.0.0.1", "IP address to listen on")
+	serverName           = flag.String("s", "", "IRC server name (i.e. the host name to send to clients)")
+	chunkSize            = flag.Int("chunk", 512, "Maximum size of a line to send to the client. Only works for certain reply types")
+	fileDownloadLocation = flag.String("d", "", "If set will download attachments to this location")
+	fileProxyPrefix      = flag.String("l", "", "If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d")
 )
 
 func main() {
@@ -41,9 +43,11 @@ func main() {
 	localAddr.IP = ip
 	log.Printf("Starting server on %v", localAddr.String())
 	server := Server{
-		LocalAddr: &localAddr,
-		Name:      sName,
-		ChunkSize: *chunkSize,
+		LocalAddr:            &localAddr,
+		Name:                 sName,
+		ChunkSize:            *chunkSize,
+		FileDownloadLocation: *fileDownloadLocation,
+		FileProxyPrefix:      *fileProxyPrefix,
 	}
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
