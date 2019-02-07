@@ -21,15 +21,15 @@ type FileHandler struct {
 
 // Download downloads url contents to a local file
 func (handler *FileHandler) Download(file slack.File) string {
-	fileUrl := file.URLPrivate
+	fileURL := file.URLPrivate
 	if handler.FileDownloadLocation == "" {
-		return fileUrl
+		return fileURL
 	}
 	if handler.SlackAPIKey == "" {
-		return fileUrl
+		return fileURL
 	}
 	if file.IsExternal {
-		return fileUrl
+		return fileURL
 	}
 	localFileName := fmt.Sprintf("%s_%s.%s", file.ID, file.Title, file.Filetype)
 	localFilePath := filepath.Join(handler.FileDownloadLocation, localFileName)
@@ -41,7 +41,7 @@ func (handler *FileHandler) Download(file slack.File) string {
 		}
 
 		defer out.Close()
-		request, _ := http.NewRequest("GET", fileUrl, nil)
+		request, _ := http.NewRequest("GET", fileURL, nil)
 		request.Header.Add("Authorization", "Bearer "+handler.SlackAPIKey)
 		var client = &http.Client{}
 		resp, err := client.Do(request)
@@ -50,18 +50,18 @@ func (handler *FileHandler) Download(file slack.File) string {
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
-			log.Printf("Got %d while downloading %s", resp.StatusCode, fileUrl)
+			log.Printf("Got %d while downloading %s", resp.StatusCode, fileURL)
 			return
 		}
 		defer resp.Body.Close()
 		_, err = io.Copy(out, resp.Body)
 		if err != nil {
-			log.Printf("Error writing %s", fileUrl)
+			log.Printf("Error writing %s", fileURL)
 		}
 		return
 	}()
 	if handler.ProxyPrefix != "" {
 		return handler.ProxyPrefix + url.PathEscape(localFileName)
 	}
-	return fileUrl
+	return fileURL
 }
