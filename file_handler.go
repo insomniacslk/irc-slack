@@ -19,16 +19,11 @@ type FileHandler struct {
 	ProxyPrefix          string
 }
 
-// Download downloads url contents to a local file
+// Download downloads url contents to a local file and returns a url to either
+// the file on slack's server or a downloaded file
 func (handler *FileHandler) Download(file slack.File) string {
 	fileURL := file.URLPrivate
-	if handler.FileDownloadLocation == "" {
-		return fileURL
-	}
-	if handler.SlackAPIKey == "" {
-		return fileURL
-	}
-	if file.IsExternal {
+	if handler.FileDownloadLocation == "" || file.IsExternal || handler.SlackAPIKey == "" {
 		return fileURL
 	}
 	localFileName := fmt.Sprintf("%s_%s.%s", file.ID, file.Title, file.Filetype)
