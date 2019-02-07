@@ -104,7 +104,6 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 	}
 	ctx, ok := UserContexts[conn.RemoteAddr()]
 	if !ok || ctx == nil {
-		log.Printf("!!! SlackApiKey %v", s.SlackAPIKey)
 		ctx = &IrcContext{
 			Conn:              conn,
 			ServerName:        s.Name,
