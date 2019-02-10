@@ -4,12 +4,20 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/nlopes/slack"
+)
+
+const (
+	maxHTTPAttempts = 3
+	retryInterval   = time.Second
 )
 
 // FileHandler downloads files from slack
@@ -17,6 +25,29 @@ type FileHandler struct {
 	SlackAPIKey          string
 	FileDownloadLocation string
 	ProxyPrefix          string
+}
+
+func retryableNetError(err error) bool {
+	if err == nil {
+		return false
+	}
+	switch err := err.(type) {
+	case net.Error:
+		if err.Timeout() {
+			return true
+		}
+	}
+	return false
+}
+
+func retryableHTTPError(resp *http.Response) bool {
+	if resp == nil {
+		return false
+	}
+	if resp.StatusCode == 500 || resp.StatusCode == 502 {
+		return true
+	}
+	return false
 }
 
 // Download downloads url contents to a local file and returns a url to either
@@ -39,8 +70,16 @@ func (handler *FileHandler) Download(file slack.File) string {
 		request, _ := http.NewRequest("GET", fileURL, nil)
 		request.Header.Add("Authorization", "Bearer "+handler.SlackAPIKey)
 		var client = &http.Client{}
-		resp, err := client.Do(request)
-		if err != nil {
+		var resp *http.Response
+		for attempt := 0; attempt < maxHTTPAttempts; attempt++ {
+			resp, err = client.Do(request)
+			if err != nil && retryableNetError(err) || retryableHTTPError(resp) {
+				time.Sleep(retryInterval * time.Duration(math.Pow(float64(attempt), 2)))
+				continue
+			}
+			if err == nil {
+				break
+			}
 			log.Printf("Error downloading %v", file)
 			return
 		}
