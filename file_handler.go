@@ -57,7 +57,10 @@ func (handler *FileHandler) Download(file slack.File) string {
 	if handler.FileDownloadLocation == "" || file.IsExternal || handler.SlackAPIKey == "" {
 		return fileURL
 	}
-	localFileName := fmt.Sprintf("%s_%s.%s", file.ID, file.Title, file.Filetype)
+	localFileName := fmt.Sprintf("%s_%s", file.ID, file.Title)
+	if !strings.HasSuffix(localFileName, file.Filetype) {
+		localFileName += file.FileType
+	}
 	localFilePath := filepath.Join(handler.FileDownloadLocation, localFileName)
 	go func() {
 		out, err := os.Create(localFilePath)
