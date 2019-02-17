@@ -59,7 +59,7 @@ func (handler *FileHandler) Download(file slack.File) string {
 	}
 	localFileName := fmt.Sprintf("%s_%s", file.ID, file.Title)
 	if !strings.HasSuffix(localFileName, file.Filetype) {
-		localFileName += file.FileType
+		localFileName += file.Filetype
 	}
 	localFilePath := filepath.Join(handler.FileDownloadLocation, localFileName)
 	go func() {
