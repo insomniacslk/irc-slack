@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net"
+	"os"
 )
 
 // TODO handle expired Slack RTM sessions (e.g. after standby/resume)
@@ -42,6 +43,12 @@ func main() {
 	}
 	localAddr.IP = ip
 	log.Printf("Starting server on %v", localAddr.String())
+	if *fileDownloadLocation != "" {
+		dInfo, err := os.Stat(*fileDownloadLocation)
+		if err != nil || !dInfo.IsDir() {
+			log.Fatalf("Missing or invalid download directory: %s", *fileDownloadLocation)
+		}
+	}
 	server := Server{
 		LocalAddr:            &localAddr,
 		Name:                 sName,
