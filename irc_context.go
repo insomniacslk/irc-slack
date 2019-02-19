@@ -34,6 +34,7 @@ type IrcContext struct {
 	ChunkSize         int
 	postMessage       chan SlackPostMessage
 	conversationCache map[string]*slack.Channel
+	FileHandler       *FileHandler
 }
 
 // Nick returns the nickname of the user, if known

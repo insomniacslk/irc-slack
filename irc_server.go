@@ -496,6 +496,7 @@ func IrcPassHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		return
 	}
 	ctx.SlackAPIKey = args[0]
+	ctx.FileHandler.SlackAPIKey = ctx.SlackAPIKey
 }
 
 // IrcWhoisHandler is called when a WHOIS command is sent
