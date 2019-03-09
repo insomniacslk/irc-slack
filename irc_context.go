@@ -13,8 +13,9 @@ import (
 
 // SlackPostMessage represents a message sent to slack api
 type SlackPostMessage struct {
-	Target string
-	Text   string
+	Target   string
+	TargetTs string
+	Text     string
 }
 
 // IrcContext holds the client context information
@@ -69,6 +70,18 @@ func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
 	return ic.Users
 }
 
+// GetThreadOpener returns text of the first message in a thread that provided message belongs to
+func (ic *IrcContext) GetThreadOpener(msg slack.Msg) string {
+	msgs, _, _, err := ic.SlackClient.GetConversationReplies(&slack.GetConversationRepliesParameters{
+		ChannelID: msg.Channel,
+		Timestamp: msg.ThreadTimestamp,
+	})
+	if err != nil || len(msgs) == 0 {
+		return ""
+	}
+	return msgs[0].Text
+}
+
 // Start handles batching of messages to slack
 func (ic *IrcContext) Start() {
 	textBuffer := make(map[string]string)
@@ -85,6 +98,9 @@ func (ic *IrcContext) Start() {
 				opts := []slack.MsgOption{}
 				opts = append(opts, slack.MsgOptionAsUser(true))
 				opts = append(opts, slack.MsgOptionText(strings.TrimSpace(text), false))
+				if message.TargetTs != "" {
+					opts = append(opts, slack.MsgOptionTS(message.TargetTs))
+				}
 				ic.SlackClient.PostMessage(target, opts...)
 			}
 			textBuffer = make(map[string]string)
@@ -93,10 +109,11 @@ func (ic *IrcContext) Start() {
 }
 
 // PostTextMessage batches all messages that should be posted to slack
-func (ic *IrcContext) PostTextMessage(target string, text string) {
+func (ic *IrcContext) PostTextMessage(target, text, targetTs string) {
 	ic.postMessage <- SlackPostMessage{
-		Target: target,
-		Text:   text,
+		Target:   target,
+		TargetTs: targetTs,
+		Text:     text,
 	}
 }
 

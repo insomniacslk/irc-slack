@@ -28,6 +28,10 @@ func formatMultipartyChannelName(slackChannelID string, slackChannelName string)
 	return name
 }
 
+func formatThreadChannelName(msg slack.Msg, channel *slack.Channel) string {
+	return "+" + channel.Name + "-" + msg.ThreadTimestamp
+}
+
 func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 	log.Print("Started Slack event listener")
 	for msg := range rtm.IncomingEvents {
@@ -42,19 +46,39 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			} else {
 				name = user.Name
 			}
+
 			// get channel or other recipient (e.g. recipient of a direct message)
 			var channame string
+			text := ""
 			if strings.HasPrefix(ev.Msg.Channel, "C") || strings.HasPrefix(ev.Msg.Channel, "G") {
 				// Channel message
 				channel, err := ctx.GetConversationInfo(ev.Msg.Channel)
+
 				if err != nil {
 					log.Printf("Error getting channel info for %v: %v", ev.Msg.Channel, err)
 					channame = "unknown"
+				} else if ev.Msg.ThreadTimestamp != "" {
+					log.Printf("This is a message in a thread %v", ev.Msg)
+					channame = formatThreadChannelName(ev.Msg, channel)
+					_, ok := ctx.Channels[channame]
+					if !ok {
+						openingText := ctx.GetThreadOpener(ev.Msg)
+						IrcSendChanInfoAfterJoin(
+							ctx,
+							channame,
+							ev.Msg.Channel,
+							openingText,
+							[]string{},
+							true,
+						)
+
+						text += openingText + "\n"
+					}
 				} else if channel.IsMpIM {
 					channame = formatMultipartyChannelName(ev.Msg.Channel, channel.Name)
 					_, ok := ctx.Channels[channame]
 					if !ok {
-						go IrcSendChanInfoAfterJoin(
+						IrcSendChanInfoAfterJoin(
 							ctx,
 							channame,
 							ev.Msg.Channel,
@@ -113,7 +137,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				continue
 			}
 
-			text := ev.Msg.Text
+			text += ev.Msg.Text
 			for _, attachment := range ev.Msg.Attachments {
 				text = joinText(text, attachment.Pretext, "\n")
 				text = joinText(text, attachment.Title, "\n")
