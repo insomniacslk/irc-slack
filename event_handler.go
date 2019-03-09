@@ -66,7 +66,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 						IrcSendChanInfoAfterJoin(
 							ctx,
 							channame,
-							channame,
+							ev.Msg.Channel,
 							openingText,
 							[]string{},
 							true,

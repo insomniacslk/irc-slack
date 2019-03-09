@@ -13,8 +13,9 @@ import (
 
 // SlackPostMessage represents a message sent to slack api
 type SlackPostMessage struct {
-	Target string
-	Text   string
+	Target   string
+	TargetTs string
+	Text     string
 }
 
 // IrcContext holds the client context information
@@ -97,6 +98,9 @@ func (ic *IrcContext) Start() {
 				opts := []slack.MsgOption{}
 				opts = append(opts, slack.MsgOptionAsUser(true))
 				opts = append(opts, slack.MsgOptionText(strings.TrimSpace(text), false))
+				if message.TargetTs != "" {
+					opts = append(opts, slack.MsgOptionTS(message.TargetTs))
+				}
 				ic.SlackClient.PostMessage(target, opts...)
 			}
 			textBuffer = make(map[string]string)
@@ -105,10 +109,11 @@ func (ic *IrcContext) Start() {
 }
 
 // PostTextMessage batches all messages that should be posted to slack
-func (ic *IrcContext) PostTextMessage(target string, text string) {
+func (ic *IrcContext) PostTextMessage(target, text, targetTs string) {
 	ic.postMessage <- SlackPostMessage{
-		Target: target,
-		Text:   text,
+		Target:   target,
+		TargetTs: targetTs,
+		Text:     text,
 	}
 }
 

@@ -330,6 +330,14 @@ func parseMentions(text string) string {
 	return strings.Join(tokens, " ")
 }
 
+func getTargetTs(channelName string) string {
+	if !strings.HasPrefix(channelName, "+") {
+		return ""
+	}
+	chanNameSplit := strings.Split(channelName, "-")
+	return chanNameSplit[len(chanNameSplit)-1]
+}
+
 // IrcPrivMsgHandler is called when a PRIVMSG command is sent
 func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
@@ -375,7 +383,11 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		//opts = append(opts, slack.MsgOptionMeMessage())
 		text = "_" + text + "_"
 	}
-	ctx.PostTextMessage(target, parseMentions(text))
+	ctx.PostTextMessage(
+		target,
+		parseMentions(text),
+		getTargetTs(args[0]),
+	)
 }
 
 func connectToSlack(ctx *IrcContext) error {
