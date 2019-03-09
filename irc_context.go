@@ -69,6 +69,18 @@ func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
 	return ic.Users
 }
 
+// GetThreadOpener returns text of the first message in a thread that provided message belongs to
+func (ic *IrcContext) GetThreadOpener(msg slack.Msg) string {
+	msgs, _, _, err := ic.SlackClient.GetConversationReplies(&slack.GetConversationRepliesParameters{
+		ChannelID: msg.Channel,
+		Timestamp: msg.ThreadTimestamp,
+	})
+	if err != nil || len(msgs) == 0 {
+		return ""
+	}
+	return msgs[0].Text
+}
+
 // Start handles batching of messages to slack
 func (ic *IrcContext) Start() {
 	textBuffer := make(map[string]string)
