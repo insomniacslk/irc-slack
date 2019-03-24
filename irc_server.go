@@ -538,7 +538,7 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	// separately.
 	channames := strings.Split(args[0], ",")
 	for _, channame := range channames {
-		if strings.HasPrefix(channame, "&") {
+		if strings.HasPrefix(channame, "&") || strings.HasPrefix(channame, "+") {
 			continue
 		}
 		ch, err := ctx.SlackClient.JoinChannel(channame)
