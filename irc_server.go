@@ -431,8 +431,13 @@ func connectToSlack(ctx *IrcContext) error {
 
 // IrcNickHandler is called when a NICK command is sent
 func IrcNickHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
-	if len(args) < 1 {
-		log.Printf("Invalid NICK command args: %v", args)
+	nick := trailing
+	if len(args) == 1 {
+		nick = args[0]
+	}
+	if nick == "" {
+		log.Printf("Invalid NICK command args: %v %v", args, trailing)
+		return
 	}
 	// The nickname cannot be changed here. Just set it to whatever Slack says
 	// you are.
@@ -445,12 +450,12 @@ func IrcNickHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	}
 	// ctx.SlackRTM.GetInfo() should not be `nil` at this points. If it is, it's ok
 	// to panic here
-	if args[0] != ctx.Nick() {
+	if nick != ctx.Nick() {
 		// the client is trying to use a different nickname, let's tell them
 		// they can't.
 		// RPL_SAVENICK
 		SendIrcNumeric(
-			ctx, 43, args[0],
+			ctx, 43, nick,
 			fmt.Sprintf("Your nickname is %s and cannot be changed", ctx.Nick()),
 		)
 	}
