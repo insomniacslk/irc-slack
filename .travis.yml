@@ -6,9 +6,8 @@ services:
   - docker
 
 go:
-  - "1.8"
-  - "1.9"
-  - "1.10"
+  - "1.12"
+  - "1.13beta1"
   - tip
 
 before_install:
@@ -26,11 +25,11 @@ deploy:
     skip_cleanup: true
     script: bash .travis/docker_push
     on:
-      go: "1.10"
+      go: "1.12"
       branch: master
   - provider: script
     skip_cleanup: true
     script: bash .travis/docker_push
     on:
-      go: "1.10"
+      go: "1.12"
       tags: true
