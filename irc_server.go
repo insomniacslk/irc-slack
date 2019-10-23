@@ -415,11 +415,6 @@ func connectToSlack(ctx *IrcContext) error {
 	log.Printf("  URL     : %v", info.URL)
 	log.Printf("  User    : %v", *info.User)
 	log.Printf("  Team    : %v", *info.Team)
-	log.Printf("  Users   : %v", info.Users)
-	log.Printf("  Channels: %v", info.Channels)
-	log.Printf("  Groups  : %v", info.Groups)
-	log.Printf("  Bots    : %v", info.Bots)
-	log.Printf("  IMs     : %v", info.IMs)
 	user := ctx.GetUserInfo(info.User.ID)
 	if user == nil {
 		return fmt.Errorf("Cannot get info for user %s (ID: %s)", info.User.Name, info.User.ID)
