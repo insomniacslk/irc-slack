@@ -71,15 +71,27 @@ func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
 }
 
 // GetThreadOpener returns text of the first message in a thread that provided message belongs to
-func (ic *IrcContext) GetThreadOpener(msg slack.Msg) string {
+func (ic *IrcContext) GetThreadOpener(channel string, threadTimestamp string) (slack.Message, error) {
 	msgs, _, _, err := ic.SlackClient.GetConversationReplies(&slack.GetConversationRepliesParameters{
-		ChannelID: msg.Channel,
-		Timestamp: msg.ThreadTimestamp,
+		ChannelID: channel,
+		Timestamp: threadTimestamp,
 	})
 	if err != nil || len(msgs) == 0 {
-		return ""
+		return slack.Message{}, err
 	}
-	return msgs[0].Text
+	return msgs[0], nil
+}
+
+// ExpandUserIds will convert slack user tags with user's nicknames
+func (ic *IrcContext) ExpandUserIds(text string) string {
+	return rxSlackUser.ReplaceAllStringFunc(text, func(subs string) string {
+		uid := subs[2 : len(subs)-1]
+		user := ic.GetUserInfo(uid)
+		if user == nil {
+			return subs
+		}
+		return fmt.Sprintf("@%s", user.Name)
+	})
 }
 
 // Start handles batching of messages to slack

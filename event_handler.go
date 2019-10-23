@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"strings"
 
 	"github.com/nlopes/slack"
@@ -28,116 +29,162 @@ func formatMultipartyChannelName(slackChannelID string, slackChannelName string)
 	return name
 }
 
-func formatThreadChannelName(msg slack.Msg, channel *slack.Channel) string {
-	return "+" + channel.Name + "-" + msg.ThreadTimestamp
+func formatThreadChannelName(threadTimestamp string, channel *slack.Channel) string {
+	return "+" + channel.Name + "-" + threadTimestamp
+}
+
+func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) string {
+	// channame := ""
+	if strings.HasPrefix(msgChannel, "C") || strings.HasPrefix(msgChannel, "G") {
+		// Channel message
+		channel, err := ctx.GetConversationInfo(msgChannel)
+
+		if err != nil {
+			log.Printf("Error getting channel info for %v: %v", msgChannel, err)
+			return ""
+		} else if threadTimestamp != "" {
+			channame := formatThreadChannelName(threadTimestamp, channel)
+			_, ok := ctx.Channels[channame]
+			if !ok {
+				openingText, err := ctx.GetThreadOpener(msgChannel, threadTimestamp)
+				if err == nil {
+					IrcSendChanInfoAfterJoin(
+						ctx,
+						channame,
+						msgChannel,
+						openingText.Text,
+						[]string{},
+						true,
+					)
+				} else {
+					log.Printf("Didn't find thread channel %v", err)
+				}
+
+				user := ctx.GetUserInfo(openingText.User)
+				name := ""
+				if user == nil {
+					log.Printf("Error getting user info for %v", openingText.User)
+					name = openingText.User
+				} else {
+					name = user.Name
+				}
+
+				privmsg := fmt.Sprintf(":%v!%v@%v PRIVMSG %v :%s%s%s\r\n",
+					name, openingText.User, ctx.ServerName,
+					channame, "", openingText.Text, "",
+				)
+				ctx.Conn.Write([]byte(privmsg))
+			}
+			return channame
+		} else if channel.IsMpIM {
+			channame := formatMultipartyChannelName(msgChannel, channel.Name)
+			_, ok := ctx.Channels[channame]
+			if !ok {
+				IrcSendChanInfoAfterJoin(
+					ctx,
+					channame,
+					msgChannel,
+					channel.Purpose.Value,
+					[]string{},
+					true,
+				)
+			}
+			return channame
+		}
+
+		return "#" + channel.Name
+	} else if strings.HasPrefix(msgChannel, "D") {
+		// Direct message to me
+		users, err := usersInConversation(ctx, msgChannel)
+		if err != nil {
+			// ERR_UNKNOWNERROR
+			SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Cannot get conversation info for %s", msgChannel))
+			return ""
+		}
+		// we expect only two members in a direct message. Raise an
+		// error if not.
+		if len(users) != 2 {
+			// ERR_UNKNOWNERROR
+			SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Exactly two users expected in direct message, got %d (conversation ID: %s)", len(users), msgChannel))
+			return ""
+
+		}
+		// of the two users, one is me. Otherwise fail
+		if ctx.UserID() == "" {
+			// ERR_UNKNOWNERROR
+			SendIrcNumeric(ctx, 400, ctx.UserID(), "Cannot get my own user ID")
+			return ""
+		}
+		if users[0] != ctx.UserID() && users[1] != ctx.UserID() {
+			// ERR_UNKNOWNERROR
+			SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Got a direct message where I am not part of the members list (members: %s)", strings.Join(users, ", ")))
+			return ""
+		}
+		var recipientID string
+		if users[0] == ctx.UserID() {
+			// then it's the other user
+			recipientID = users[1]
+		} else {
+			recipientID = users[0]
+		}
+		// now resolve the ID to the user's nickname
+		nickname := ctx.GetUserInfo(recipientID)
+		if nickname == nil {
+			// ERR_UNKNOWNERROR
+			SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Unknown destination user ID %s for direct message %s", recipientID, msgChannel))
+			return ""
+		}
+		return nickname.Name
+	}
+	log.Printf("Unknown recipient ID: %s", msgChannel)
+	return ""
+}
+
+func appendIfNotMoreThan(slice []slack.Msg, msg slack.Msg) []slack.Msg {
+	if len(slice) == 100 {
+		return append(slice[1:], msg)
+	}
+	return append(slice, msg)
+}
+
+func getConversationDetails(
+	ctx *IrcContext,
+	channelID string,
+	timestamp string,
+) (slack.Message, error) {
+	message, err := ctx.SlackClient.GetConversationHistory(&slack.GetConversationHistoryParameters{
+		ChannelID: channelID,
+		Latest:    timestamp,
+		Limit:     1,
+		Inclusive: true,
+	})
+	if err != nil {
+		return slack.Message{}, err
+	}
+	if len(message.Messages) > 0 {
+		return message.Messages[0], nil
+	}
+	return slack.Message{}, fmt.Errorf("No such message found")
 }
 
 func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 	log.Print("Started Slack event listener")
+	var messageCache []slack.Msg
 	for msg := range rtm.IncomingEvents {
 		switch ev := msg.Data.(type) {
 		case *slack.MessageEvent:
-			// get user
-			var name string
 			user := ctx.GetUserInfo(ev.Msg.User)
+			name := ""
 			if user == nil {
 				log.Printf("Error getting user info for %v", ev.Msg.User)
 				name = ev.Msg.User
 			} else {
 				name = user.Name
 			}
-
 			// get channel or other recipient (e.g. recipient of a direct message)
-			var channame string
-			text := ""
-			if strings.HasPrefix(ev.Msg.Channel, "C") || strings.HasPrefix(ev.Msg.Channel, "G") {
-				// Channel message
-				channel, err := ctx.GetConversationInfo(ev.Msg.Channel)
+			channame := resolveChannelName(ctx, ev.Msg.Channel, ev.ThreadTimestamp)
 
-				if err != nil {
-					log.Printf("Error getting channel info for %v: %v", ev.Msg.Channel, err)
-					channame = "unknown"
-				} else if ev.Msg.ThreadTimestamp != "" {
-					log.Printf("This is a message in a thread %v", ev.Msg)
-					channame = formatThreadChannelName(ev.Msg, channel)
-					_, ok := ctx.Channels[channame]
-					if !ok {
-						openingText := ctx.GetThreadOpener(ev.Msg)
-						IrcSendChanInfoAfterJoin(
-							ctx,
-							channame,
-							ev.Msg.Channel,
-							openingText,
-							[]string{},
-							true,
-						)
-
-						text += openingText + "\n"
-					}
-				} else if channel.IsMpIM {
-					channame = formatMultipartyChannelName(ev.Msg.Channel, channel.Name)
-					_, ok := ctx.Channels[channame]
-					if !ok {
-						IrcSendChanInfoAfterJoin(
-							ctx,
-							channame,
-							ev.Msg.Channel,
-							channel.Purpose.Value,
-							[]string{},
-							true,
-						)
-					}
-				} else {
-					channame = "#" + channel.Name
-				}
-			} else if strings.HasPrefix(ev.Msg.Channel, "D") {
-				// Direct message to me
-				users, err := usersInConversation(ctx, ev.Msg.Channel)
-				if err != nil {
-					// ERR_UNKNOWNERROR
-					SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Cannot get conversation info for %s", ev.Msg.Channel))
-					continue
-				}
-				// we expect only two members in a direct message. Raise an
-				// error if not.
-				if len(users) != 2 {
-					// ERR_UNKNOWNERROR
-					SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Exactly two users expected in direct message, got %d (conversation ID: %s)", len(users), ev.Msg.Channel))
-					continue
-
-				}
-				// of the two users, one is me. Otherwise fail
-				if ctx.UserID() == "" {
-					// ERR_UNKNOWNERROR
-					SendIrcNumeric(ctx, 400, ctx.UserID(), "Cannot get my own user ID")
-					continue
-				}
-				if users[0] != ctx.UserID() && users[1] != ctx.UserID() {
-					// ERR_UNKNOWNERROR
-					SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Got a direct message where I am not part of the members list (members: %s)", strings.Join(users, ", ")))
-					continue
-				}
-				var recipientID string
-				if users[0] == ctx.UserID() {
-					// then it's the other user
-					recipientID = users[1]
-				} else {
-					recipientID = users[0]
-				}
-				// now resolve the ID to the user's nickname
-				nickname := ctx.GetUserInfo(recipientID)
-				if nickname == nil {
-					// ERR_UNKNOWNERROR
-					SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Unknown destination user ID %s for direct message %s", recipientID, ev.Msg.Channel))
-					continue
-				}
-				channame = nickname.Name
-			} else {
-				log.Printf("Unknown recipient ID: %s", ev.Msg.Channel)
-				continue
-			}
-
-			text += ev.Msg.Text
+			text := ev.Msg.Text
 			for _, attachment := range ev.Msg.Attachments {
 				text = joinText(text, attachment.Pretext, "\n")
 				text = joinText(text, attachment.Title, "\n")
@@ -162,25 +209,16 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				log.Printf("WARNING: empty user and message: %+v", ev.Msg)
 				continue
 			}
-			// replace UIDs with user names
-			// replace UIDs with nicknames
-			text = rxSlackUser.ReplaceAllStringFunc(text, func(subs string) string {
-				uid := subs[2 : len(subs)-1]
-				user := ctx.GetUserInfo(uid)
-				if user == nil {
-					return subs
-				}
-				return fmt.Sprintf("@%s", user.Name)
-			})
-			// replace some HTML entities
+			text = ctx.ExpandUserIds(text)
 			text = ExpandText(text)
+			messageCache = appendIfNotMoreThan(messageCache, ev.Msg)
 
 			// FIXME if two instances are connected to the Slack API at the
 			// same time, this will hide the other instance's message
 			// believing it was sent from here. But since it's not, both
 			// local echo and remote message won't be shown
 			botID := msg.Data.(*slack.MessageEvent).BotID
-			if name == ctx.Nick() && botID != user.Profile.BotID {
+			if name == ctx.Nick() && user != nil && botID != user.Profile.BotID {
 				// don't print my own messages
 				continue
 			}
@@ -231,6 +269,42 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			ctx.GetUsers(true)
 		case *slack.ChannelJoinedEvent:
 			ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), ev.Channel.Name)))
+		case *slack.ReactionAddedEvent:
+			channame := resolveChannelName(ctx, ev.Item.Channel, "")
+			user := ctx.GetUserInfo(ev.User)
+			name := ""
+			if user == nil {
+				log.Printf("Error getting user info for %v", ev.User)
+				name = ev.User
+			} else {
+				name = user.Name
+			}
+			msgText := ""
+			for _, msg := range messageCache {
+				if msg.Timestamp == ev.Item.Timestamp {
+					msgText = msg.Text
+					break
+				}
+			}
+			if msgText == "" {
+				msg, err := getConversationDetails(ctx, ev.Item.Channel, ev.Item.Timestamp)
+				if err != nil {
+					fmt.Printf("could not get Conversation details %s", err)
+				}
+				msgText = msg.Text
+			}
+
+			msgText = ctx.ExpandUserIds(msgText)
+			msgText = ExpandText(msgText)
+
+			msgText = msgText[:int(math.Min(float64(len(msgText)), 100))]
+
+			privmsg := fmt.Sprintf(":%v!%v@%v PRIVMSG %v :\x01ACTION reacted with %s to: \x0315%s\x03\x01\r\n",
+				name, ev.User, ctx.ServerName,
+				channame, ev.Reaction, msgText,
+			)
+			log.Print(privmsg)
+			ctx.Conn.Write([]byte(privmsg))
 		default:
 			log.Printf("SLACK event: %v: %+v", msg.Type, msg.Data)
 		}
