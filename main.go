@@ -2,9 +2,10 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net"
 	"os"
+
+	"github.com/coredhcp/coredhcp/logger"
 )
 
 // TODO handle expired Slack RTM sessions (e.g. after standby/resume)
@@ -26,6 +27,8 @@ var (
 	fileDownloadLocation = flag.String("d", "", "If set will download attachments to this location")
 	fileProxyPrefix      = flag.String("l", "", "If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d")
 )
+
+var log = logger.GetLogger("main")
 
 func main() {
 	flag.Parse()
