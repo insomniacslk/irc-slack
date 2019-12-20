@@ -65,7 +65,7 @@ func (handler *FileHandler) Download(file slack.File) string {
 	go func() {
 		out, err := os.Create(localFilePath)
 		if err != nil {
-			log.Printf("Could not create file for download %s: %v", localFilePath, err)
+			log.Warningf("Could not create file for download %s: %v", localFilePath, err)
 			return
 		}
 
@@ -83,17 +83,17 @@ func (handler *FileHandler) Download(file slack.File) string {
 			if err == nil {
 				break
 			}
-			log.Printf("Error downloading %s: %v", fileURL, err)
+			log.Warningf("Error downloading %s: %v", fileURL, err)
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
-			log.Printf("Got %d while downloading %s", resp.StatusCode, fileURL)
+			log.Debugf("Got %d while downloading %s", resp.StatusCode, fileURL)
 			return
 		}
 		defer resp.Body.Close()
 		_, err = io.Copy(out, resp.Body)
 		if err != nil {
-			log.Printf("Error writing %s: %v", fileURL, err)
+			log.Warningf("Error writing %s: %v", fileURL, err)
 		}
 		return
 	}()

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/coredhcp/coredhcp/logger"
+	"github.com/sirupsen/logrus"
 )
 
 // TODO handle expired Slack RTM sessions (e.g. after standby/resume)
@@ -26,12 +27,18 @@ var (
 	chunkSize            = flag.Int("chunk", 512, "Maximum size of a line to send to the client. Only works for certain reply types")
 	fileDownloadLocation = flag.String("d", "", "If set will download attachments to this location")
 	fileProxyPrefix      = flag.String("l", "", "If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d")
+	doDebug              = flag.Bool("D", false, "Enable debug logging")
 )
 
 var log = logger.GetLogger("main")
 
 func main() {
 	flag.Parse()
+
+	if *doDebug {
+		log.Logger.SetLevel(logrus.DebugLevel)
+		log.Info("Enable debug logging")
+	}
 
 	var sName string
 	if *serverName == "" {
@@ -42,7 +49,7 @@ func main() {
 	localAddr := net.TCPAddr{Port: *port}
 	ip := net.ParseIP(*host)
 	if ip == nil {
-		log.Fatal("Invalid IP address to listen on")
+		log.Fatalf("Invalid IP address to listen on: '%s'", *host)
 	}
 	localAddr.IP = ip
 	log.Printf("Starting server on %v", localAddr.String())
