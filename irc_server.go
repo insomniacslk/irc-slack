@@ -3,15 +3,14 @@ package main
 import (
 	"fmt"
 	"html"
-	"log"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/nlopes/slack"
+	"github.com/sirupsen/logrus"
 )
 
 // Project constants
@@ -390,9 +389,18 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 	)
 }
 
+// wrapped logger that satisfies the slack.logger interface
+type loggerWrapper struct {
+	*logrus.Logger
+}
+
+func (l *loggerWrapper) Output(calldepth int, s string) error {
+	l.Print(s)
+	return nil
+}
+
 func connectToSlack(ctx *IrcContext) error {
-	logger := log.New(os.Stdout, "slack: ", log.Lshortfile|log.LstdFlags)
-	ctx.SlackClient = slack.New(ctx.SlackAPIKey, slack.OptionDebug(false), slack.OptionLog(logger))
+	ctx.SlackClient = slack.New(ctx.SlackAPIKey, slack.OptionDebug(false), slack.OptionLog(&loggerWrapper{log.Logger}))
 	rtm := ctx.SlackClient.NewRTM()
 	ctx.SlackRTM = rtm
 	go rtm.ManageConnection()
