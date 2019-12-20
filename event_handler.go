@@ -39,7 +39,7 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 		channel, err := ctx.GetConversationInfo(msgChannel)
 
 		if err != nil {
-			log.Printf("Error getting channel info for %v: %v", msgChannel, err)
+			log.Warningf("Failed to get channel info for %v: %v", msgChannel, err)
 			return ""
 		} else if threadTimestamp != "" {
 			channame := formatThreadChannelName(threadTimestamp, channel)
@@ -56,13 +56,13 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 						true,
 					)
 				} else {
-					log.Printf("Didn't find thread channel %v", err)
+					log.Warningf("Didn't find thread channel %v", err)
 				}
 
 				user := ctx.GetUserInfo(openingText.User)
 				name := ""
 				if user == nil {
-					log.Printf("Error getting user info for %v", openingText.User)
+					log.Warningf("Error getting user info for %v", openingText.User)
 					name = openingText.User
 				} else {
 					name = user.Name
@@ -135,7 +135,7 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 		}
 		return nickname.Name
 	}
-	log.Printf("Unknown recipient ID: %s", msgChannel)
+	log.Warningf("Unknown recipient ID: %s", msgChannel)
 	return ""
 }
 
@@ -167,7 +167,7 @@ func getConversationDetails(
 }
 
 func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
-	log.Print("Started Slack event listener")
+	log.Info("Started Slack event listener")
 	var messageCache []slack.Msg
 	for msg := range rtm.IncomingEvents {
 		switch ev := msg.Data.(type) {
@@ -175,7 +175,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			user := ctx.GetUserInfo(ev.Msg.User)
 			name := ""
 			if user == nil {
-				log.Printf("Error getting user info for %v", ev.Msg.User)
+				log.Warningf("Failed to get user info for %v", ev.Msg.User)
 				name = ev.Msg.User
 			} else {
 				name = user.Name
@@ -198,14 +198,14 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				text = joinText(text, ctx.FileHandler.Download(file), " ")
 			}
 
-			log.Printf("SLACK msg from %v (%v) on %v: %v",
+			log.Debugf("SLACK msg from %v (%v) on %v: %v",
 				ev.Msg.User,
 				name,
 				ev.Msg.Channel,
 				text,
 			)
 			if ev.Msg.User == "" && text == "" {
-				log.Printf("WARNING: empty user and message: %+v", ev.Msg)
+				log.Warningf("Empty user and message: %+v", ev.Msg)
 				continue
 			}
 			text = ctx.ExpandUserIds(text)
@@ -233,7 +233,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 					name, ev.Msg.User, ctx.ServerName,
 					channame, linePrefix, line, lineSuffix,
 				)
-				log.Print(privmsg)
+				log.Debug(privmsg)
 				ctx.Conn.Write([]byte(privmsg))
 			}
 			msgEv := msg.Data.(*slack.MessageEvent)
@@ -242,24 +242,24 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				// Send out new topic
 				channel, err := ctx.SlackClient.GetChannelInfo(msgEv.Channel)
 				if err != nil {
-					log.Printf("Cannot get channel name for %v", msgEv.Channel)
+					log.Warningf("Cannot get channel name for %v", msgEv.Channel)
 				} else {
 					newTopic := fmt.Sprintf(":%v TOPIC #%v :%v\r\n", ctx.Mask(), channel.Name, msgEv.Topic)
-					log.Printf("Got new topic: %v", newTopic)
+					log.Infof("Got new topic: %v", newTopic)
 					ctx.Conn.Write([]byte(newTopic))
 				}
 			}
 			// check if new people joined the channel
 			added, removed := ctx.Channels[msgEv.Channel].MembersDiff(msgEv.Members)
 			if len(added) > 0 || len(removed) > 0 {
-				log.Printf("[*] People who joined: %v", added)
-				log.Printf("[*] People who left: %v", removed)
+				log.Infof("[*] People who joined: %v", added)
+				log.Infof("[*] People who left: %v", removed)
 			}
 		case *slack.ConnectedEvent:
-			log.Print("Connected to Slack")
+			log.Info("Connected to Slack")
 			ctx.SlackConnected = true
 		case *slack.DisconnectedEvent:
-			log.Printf("Disconnected from Slack (intentional: %v)", msg.Data.(*slack.DisconnectedEvent).Intentional)
+			log.Warningf("Disconnected from Slack (intentional: %v)", msg.Data.(*slack.DisconnectedEvent).Intentional)
 			ctx.SlackConnected = false
 			ctx.Conn.Close()
 		case *slack.MemberJoinedChannelEvent, *slack.MemberLeftChannelEvent:
@@ -273,7 +273,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			user := ctx.GetUserInfo(ev.User)
 			name := ""
 			if user == nil {
-				log.Printf("Error getting user info for %v", ev.User)
+				log.Warningf("Error getting user info for %v", ev.User)
 				name = ev.User
 			} else {
 				name = user.Name
@@ -302,10 +302,10 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				name, ev.User, ctx.ServerName,
 				channame, ev.Reaction, msgText,
 			)
-			log.Print(privmsg)
+			log.Debug(privmsg)
 			ctx.Conn.Write([]byte(privmsg))
 		default:
-			log.Printf("SLACK event: %v: %+v", msg.Type, msg.Data)
+			log.Debugf("SLACK event: %v: %+v", msg.Type, msg.Data)
 		}
 	}
 }

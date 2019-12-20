@@ -29,7 +29,7 @@ func (s Server) Start() error {
 	}
 	s.Listener = listener.(*net.TCPListener)
 	defer s.Listener.Close()
-	log.Printf("Listening on %v", s.LocalAddr)
+	log.Infof("Listening on %v", s.LocalAddr)
 	for {
 		conn, err := s.Listener.Accept()
 		if err != nil {
@@ -52,10 +52,10 @@ func (s Server) HandleRequest(conn *net.TCPConn) {
 				delete(UserContexts, conn.RemoteAddr())
 			}
 			if err == io.EOF {
-				log.Printf("Client %v disconnected", conn.RemoteAddr())
+				log.Warningf("Client %v disconnected", conn.RemoteAddr())
 				break
 			}
-			log.Printf("Error handling connection from %v: %v", conn.RemoteAddr(), err)
+			log.Warningf("Error handling connection from %v: %v", conn.RemoteAddr(), err)
 			break
 		}
 		s.HandleMsg(conn, string(line))
@@ -64,9 +64,9 @@ func (s Server) HandleRequest(conn *net.TCPConn) {
 
 // HandleMsg handles raw IRC messages
 func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
-	log.Printf("%v: %v", conn.RemoteAddr(), msg)
+	log.Debugf("%v: %v", conn.RemoteAddr(), msg)
 	if len(msg) < 1 {
-		log.Printf("Invalid message: '%v'", msg)
+		log.Warningf("Invalid message: '%v'", msg)
 		return
 	}
 	var (
@@ -80,7 +80,7 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 		data = msg
 	}
 	if !strings.HasSuffix(data, "\r\n") {
-		log.Print("Invalid data: not terminated with <CR><LF>")
+		log.Warning("Invalid data: not terminated with <CR><LF>")
 		return
 	}
 	data = data[:len(data)-2]
@@ -98,7 +98,7 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 	}
 	handler, ok := IrcCommandHandlers[cmd]
 	if !ok {
-		log.Printf("No handler found for %v", cmd)
+		log.Warningf("No handler found for %v", cmd)
 		return
 	}
 	ctx, ok := UserContexts[conn.RemoteAddr()]

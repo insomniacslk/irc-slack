@@ -69,7 +69,7 @@ func SplitReply(preamble, msg string, chunksize int) []string {
 		// return the whole string as one chunk
 		return []string{preamble + msg + "\r\n"}
 	}
-	log.Printf("Splitting reply in %d-byte chunks", chunksize)
+	log.Debugf("Splitting reply in %d-byte chunks", chunksize)
 	// Split and build a string until it's long enough to fit the
 	// chunk. Splitting ignores multiple contiguous white-spaces.
 	// We assume this is safe (unless we find out it's not).
@@ -135,7 +135,7 @@ func SendIrcNumeric(ctx *IrcContext, code int, args, desc string) error {
 	//reply := fmt.Sprintf(":%s %03d %s :%s\r\n", ctx.ServerName, code, args, desc)
 	chunks := SplitReply(preamble, desc, ctx.ChunkSize)
 	for _, chunk := range chunks {
-		log.Printf("Sending numeric reply: %s", chunk)
+		log.Debugf("Sending numeric reply: %s", chunk)
 		_, err := ctx.Conn.Write([]byte(chunk))
 		if err != nil {
 			return err
@@ -157,7 +157,7 @@ func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, id, topic string, members [
 	SendIrcNumeric(ctx, 366, fmt.Sprintf("%s %s", ctx.Nick(), name), "End of NAMES list")
 	ctx.ChanMutex.Lock()
 	ctx.Channels[name] = Channel{Topic: topic, Members: members, ID: id, IsGroup: isGroup}
-	log.Printf("Adding %s %v", name, ctx.Channels[name])
+	log.Infof("Adding %s %v", name, ctx.Channels[name])
 	ctx.ChanMutex.Unlock()
 }
 
@@ -175,14 +175,14 @@ func usersInConversation(ctx *IrcContext, conversation string) ([]string, error)
 			if attempt >= MaxSlackAPIAttempts {
 				return nil, fmt.Errorf("GetUsersInConversation: exceeded the maximum number of attempts (%d) with the Slack API", MaxSlackAPIAttempts)
 			}
-			log.Printf("GetUsersInConversation: page %d attempt #%d nextCursor=%s", page, attempt, nextCursor)
+			log.Debugf("GetUsersInConversation: page %d attempt #%d nextCursor=%s", page, attempt, nextCursor)
 			m, nextCursor, err = ctx.SlackClient.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: conversation, Cursor: nextCursor})
 			if err != nil {
-				log.Printf("Err: %v", err)
+				log.Errorf("Failed to get users in conversation '%s': %v", conversation, err)
 				if rlErr, ok := err.(*slack.RateLimitedError); ok {
 					// we were rate-limited. Let's wait as much as Slack
 					// instructs us to do
-					log.Printf("Hit Slack API rate limiter. Waiting %v", rlErr.RetryAfter)
+					log.Warningf("Hit Slack API rate limiter. Waiting %v", rlErr.RetryAfter)
 					time.Sleep(rlErr.RetryAfter)
 					attempt++
 					continue
@@ -208,7 +208,7 @@ func join(ctx *IrcContext, id, name, topic string) error {
 		return err
 	}
 	info := fmt.Sprintf("#%s topic=%s members=%d", name, topic, len(members))
-	log.Printf(info)
+	log.Infof(info)
 	// the channels are already joined, notify the IRC client of their
 	// existence
 	go IrcSendChanInfoAfterJoin(ctx, name, id, topic, members, false)
@@ -218,7 +218,7 @@ func join(ctx *IrcContext, id, name, topic string) error {
 // joinChannels gets all the available Slack channels and sends an IRC JOIN message
 // for each of the joined channels on Slack
 func joinChannels(ctx *IrcContext) error {
-	log.Print("Channel list:")
+	log.Info("Channel list:")
 	var (
 		channels, chans []slack.Channel
 		nextCursor      string
@@ -231,18 +231,18 @@ func joinChannels(ctx *IrcContext) error {
 			if attempt >= MaxSlackAPIAttempts {
 				return fmt.Errorf("GetConversations: exceeded the maximum number of attempts (%d) with the Slack API", MaxSlackAPIAttempts)
 			}
-			log.Printf("GetConversations: attempt #%d, nextCursor=%s", attempt, nextCursor)
+			log.Infof("GetConversations: attempt #%d, nextCursor=%s", attempt, nextCursor)
 			params := slack.GetConversationsParameters{
 				Types:  []string{"public_channel", "private_channel"},
 				Cursor: nextCursor,
 			}
 			chans, nextCursor, err = ctx.SlackClient.GetConversations(&params)
 			if err != nil {
-				log.Printf("Err: %v", err)
+				log.Warningf("Failed to get conversations: %v", err)
 				if rlErr, ok := err.(*slack.RateLimitedError); ok {
 					// we were rate-limited. Let's wait as much as Slack
 					// instructs us to do
-					log.Printf("Hit Slack API rate limiter. Waiting %v", rlErr.RetryAfter)
+					log.Warningf("Hit Slack API rate limiter. Waiting %v", rlErr.RetryAfter)
 					time.Sleep(rlErr.RetryAfter)
 					attempt++
 					continue
@@ -306,7 +306,7 @@ func IrcCapHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing 
 			reply := fmt.Sprintf(":%s CAP * LS :\r\n", ctx.ServerName)
 			ctx.Conn.Write([]byte(reply))
 		} else {
-			log.Printf("Got CAP %v", args)
+			log.Debugf("Got CAP %v", args)
 		}
 	}
 }
@@ -340,7 +340,7 @@ func getTargetTs(channelName string) string {
 // IrcPrivMsgHandler is called when a PRIVMSG command is sent
 func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
-		log.Printf("Invalid PRIVMSG command args: %v", args)
+		log.Warningf("Invalid PRIVMSG command args: %v", args)
 	}
 	channel, ok := ctx.Channels[args[0]]
 	target := ""
@@ -361,7 +361,7 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		key := target
 		ch, ok := ctx.Channels[key]
 		if !ok {
-			log.Printf("Error: unknown channel ID for %s", key)
+			log.Warningf("Unknown channel ID for %s", key)
 			return
 		}
 		target = ch.ID
@@ -404,7 +404,7 @@ func connectToSlack(ctx *IrcContext) error {
 	rtm := ctx.SlackClient.NewRTM()
 	ctx.SlackRTM = rtm
 	go rtm.ManageConnection()
-	log.Print("Starting Slack client")
+	log.Info("Starting Slack client")
 	// Wait until the websocket is connected, then print client info
 	var info *slack.Info
 	// FIXME tune the timeout to a value that makes sense
@@ -419,10 +419,10 @@ func connectToSlack(ctx *IrcContext) error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	log.Print("CLIENT INFO:")
-	log.Printf("  URL     : %v", info.URL)
-	log.Printf("  User    : %v", *info.User)
-	log.Printf("  Team    : %v", *info.Team)
+	log.Info("CLIENT INFO:")
+	log.Infof("  URL     : %v", info.URL)
+	log.Infof("  User    : %v", *info.User)
+	log.Infof("  Team    : %v", *info.Team)
 	user := ctx.GetUserInfo(info.User.ID)
 	if user == nil {
 		return fmt.Errorf("Cannot get info for user %s (ID: %s)", info.User.Name, info.User.ID)
@@ -439,14 +439,14 @@ func IrcNickHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		nick = args[0]
 	}
 	if nick == "" {
-		log.Printf("Invalid NICK command args: %v %v", args, trailing)
+		log.Warningf("Invalid NICK command args: %v %v", args, trailing)
 		return
 	}
 	// The nickname cannot be changed here. Just set it to whatever Slack says
 	// you are.
 	if ctx.SlackClient == nil {
 		if err := connectToSlack(ctx); err != nil {
-			log.Printf("Error: cannot connect to Slack: %v", err)
+			log.Warningf("Cannot connect to Slack: %v", err)
 			// close the IRC connection to the client
 			ctx.Conn.Close()
 		}
@@ -462,13 +462,13 @@ func IrcNickHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 			fmt.Sprintf("Your nickname is %s and cannot be changed", ctx.Nick()),
 		)
 	}
-	log.Printf("Setting nickname for %v to %v", ctx.Conn.RemoteAddr(), ctx.Nick())
+	log.Infof("Setting nickname for %v to %v", ctx.Conn.RemoteAddr(), ctx.Nick())
 }
 
 // IrcUserHandler is called when a USER command is sent
 func IrcUserHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if ctx.Nick() == "" {
-		log.Print("Empty nickname!")
+		log.Warning("Empty nickname!")
 		return
 	}
 	// ignore the user-specified username. Will use the Slack ID instead
@@ -510,7 +510,7 @@ func IrcModeHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 // IrcPassHandler is called when a PASS command is sent
 func IrcPassHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
-		log.Printf("Invalid PASS arguments: %s", args)
+		log.Warningf("Invalid PASS arguments: %s", args)
 		// ERR_PASSWDMISMATCH
 		SendIrcNumeric(ctx, 464, "", "Invalid password")
 		return
@@ -563,10 +563,10 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		}
 		ch, err := ctx.SlackClient.JoinChannel(channame)
 		if err != nil {
-			log.Printf("Cannot join channel %s: %v", channame, err)
+			log.Warningf("Cannot join channel %s: %v", channame, err)
 			continue
 		}
-		log.Printf("Joined channel %s", channame)
+		log.Infof("Joined channel %s", channame)
 		go IrcSendChanInfoAfterJoin(ctx, channame, ch.ID, ch.Purpose.Value, ch.Members, true)
 	}
 }
@@ -587,7 +587,7 @@ func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	// list and finding the one whose name is the one we want to leave
 	chanlist, err := ctx.SlackClient.GetChannels(true)
 	if err != nil {
-		log.Printf("Cannot leave channel %s: %v", channame, err)
+		log.Warningf("Cannot leave channel %s: %v", channame, err)
 		// ERR_UNKNOWNERROR
 		SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Cannot leave channel: %v", err))
 		return
@@ -596,7 +596,7 @@ func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	for _, ch := range chanlist {
 		if ch.Name == channame {
 			chanID = ch.ID
-			log.Printf("Trying to leave channel: %+v", ch)
+			log.Debugf("Trying to leave channel: %+v", ch)
 			break
 		}
 	}
@@ -607,7 +607,7 @@ func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	}
 	notInChan, err := ctx.SlackClient.LeaveChannel(chanID)
 	if err != nil {
-		log.Printf("Cannot leave channel %s (id: %s): %v", channame, chanID, err)
+		log.Warningf("Cannot leave channel %s (id: %s): %v", channame, chanID, err)
 		return
 	}
 	if notInChan {
@@ -615,7 +615,7 @@ func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		SendIrcNumeric(ctx, 441, ctx.Nick(), fmt.Sprintf("User is not in channel %s", channame))
 		return
 	}
-	log.Printf("Left channel %s", channame)
+	log.Debugf("Left channel %s", channame)
 	ctx.Conn.Write([]byte(fmt.Sprintf(":%v PART #%v\r\n", ctx.Mask(), channame)))
 }
 
@@ -630,7 +630,7 @@ func IrcTopicHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 	topic := trailing
 	channel, ok := ctx.Channels[channame]
 	if !ok {
-		log.Printf("IrcTopicHandler: unknown channel %s", channame)
+		log.Warningf("IrcTopicHandler: unknown channel %s", channame)
 		return
 	}
 	newTopic, err := ctx.SlackClient.SetPurposeOfConversation(channel.ID, topic)

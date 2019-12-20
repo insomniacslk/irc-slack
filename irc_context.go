@@ -60,11 +60,11 @@ func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
 	if refresh || ic.Users == nil || len(ic.Users) == 0 {
 		users, err := ic.SlackClient.GetUsers()
 		if err != nil {
-			log.Printf("Failed to get users: %v", err)
+			log.Warningf("Failed to get users: %v", err)
 			return nil
 		}
 		ic.Users = users
-		log.Printf("Fetched %v users", len(users))
+		log.Infof("Fetched %v users", len(users))
 	}
 	return ic.Users
 }
@@ -101,7 +101,7 @@ func (ic *IrcContext) Start() {
 	for {
 		select {
 		case message = <-ic.postMessage:
-			log.Printf("Got new message %v", message)
+			log.Debugf("Got new message %v", message)
 			textBuffer[message.Target] += message.Text + "\n"
 			timer.Reset(time.Second)
 		case <-timer.C:
@@ -186,10 +186,10 @@ func (ic IrcContext) UserIDsToNames(userIDs ...string) []string {
 		user, ok := usersMap[uid]
 		if !ok {
 			names = append(names, uid)
-			log.Printf("Could not fetch user %s, not in user map", uid)
+			log.Warningf("Could not fetch user %s, not in user map", uid)
 		} else {
 			names = append(names, user.Name)
-			log.Printf("Fetched info for user ID %s: %s", uid, user.Name)
+			log.Infof("Fetched info for user ID %s: %s", uid, user.Name)
 		}
 	}
 	return names
