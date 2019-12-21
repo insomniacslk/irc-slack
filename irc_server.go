@@ -86,8 +86,9 @@ func SplitReply(preamble, msg string, chunksize int) []string {
 }
 
 var (
-	rxSlackUrls = regexp.MustCompile("<[^>]+>?")
-	rxSlackUser = regexp.MustCompile("<@[UW][A-Z0-9]+>")
+	rxSlackUrls       = regexp.MustCompile("<[^>]+>?")
+	rxSlackUser       = regexp.MustCompile("<@[UW][A-Z0-9]+>")
+	rxSlackArchiveURL = regexp.MustCompile("https?:\\/\\/[a-z0-9\\-]+\\.slack\\.com\\/archives\\/([a-zA-Z0-9]+)\\/p([0-9]{10})([0-9]{6})")
 )
 
 // ExpandText expands and unquotes text and URLs from Slack's messages. Slack
@@ -97,6 +98,7 @@ var (
 // function tries to detect them and unquote and expand them for a better
 // visualization on IRC.
 func ExpandText(text string) string {
+
 	text = rxSlackUrls.ReplaceAllStringFunc(text, func(subs string) string {
 		if !strings.HasPrefix(subs, "<") && !strings.HasSuffix(subs, ">") {
 			return subs
