@@ -262,6 +262,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			log.Warningf("Disconnected from Slack (intentional: %v)", msg.Data.(*slack.DisconnectedEvent).Intentional)
 			ctx.SlackConnected = false
 			ctx.Conn.Close()
+			return
 		case *slack.MemberJoinedChannelEvent, *slack.MemberLeftChannelEvent:
 			// refresh the users list
 			// FIXME also send a JOIN / PART message to the IRC client
@@ -304,6 +305,10 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			)
 			log.Debug(privmsg)
 			ctx.Conn.Write([]byte(privmsg))
+		case *slack.RTMError:
+			log.Warningf("Slack RTM error: %v", ev.Error())
+		case *slack.InvalidAuthEvent:
+			log.Warningf("Invalid slack credentials")
 		default:
 			log.Debugf("SLACK event: %v: %+v", msg.Type, msg.Data)
 		}
