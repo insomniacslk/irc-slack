@@ -305,6 +305,8 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			)
 			log.Debug(privmsg)
 			ctx.Conn.Write([]byte(privmsg))
+		case *slack.LatencyReport:
+			log.Infof("Current Slack latency: %v", ev.Value)
 		case *slack.RTMError:
 			log.Warningf("Slack RTM error: %v", ev.Error())
 		case *slack.InvalidAuthEvent:

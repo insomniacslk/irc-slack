@@ -189,7 +189,7 @@ func (ic IrcContext) UserIDsToNames(userIDs ...string) []string {
 			log.Warningf("Could not fetch user %s, not in user map", uid)
 		} else {
 			names = append(names, user.Name)
-			log.Infof("Fetched info for user ID %s: %s", uid, user.Name)
+			log.Debugf("Fetched info for user ID %s: %s", uid, user.Name)
 		}
 	}
 	return names
