@@ -305,6 +305,9 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			)
 			log.Debug(privmsg)
 			ctx.Conn.Write([]byte(privmsg))
+		case *slack.DesktopNotificationEvent:
+			// TODO implement actions on notifications
+			log.Infof("Desktop notification: %+v", ev)
 		case *slack.LatencyReport:
 			log.Infof("Current Slack latency: %v", ev.Value)
 		case *slack.RTMError:
