@@ -305,6 +305,18 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			)
 			log.Debug(privmsg)
 			ctx.Conn.Write([]byte(privmsg))
+		case *slack.UserTypingEvent:
+			u := ctx.GetUserInfo(ev.User)
+			username := "<unknown>"
+			if u != nil {
+				username = u.Name
+			}
+			c, err := ctx.GetConversationInfo(ev.Channel)
+			channame := "<unknown or IM chat>"
+			if err == nil {
+				channame = c.Name
+			}
+			log.Infof("User %s (%s) is typing on channel %s (%s)", ev.User, username, ev.Channel, channame)
 		case *slack.DesktopNotificationEvent:
 			// TODO implement actions on notifications
 			log.Infof("Desktop notification: %+v", ev)
