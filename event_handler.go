@@ -166,6 +166,21 @@ func getConversationDetails(
 	return slack.Message{}, fmt.Errorf("No such message found")
 }
 
+func replacePermalinkWithText(ctx *IrcContext, text string) string {
+	matches := rxSlackArchiveURL.FindStringSubmatch(text)
+	if len(matches) != 4 {
+		return text
+	}
+	channel := matches[1]
+	timestamp := matches[2] + "." + matches[3]
+	message, err := getConversationDetails(ctx, channel, timestamp)
+	if err != nil {
+		log.Printf("could not get message details from permalink %s %s %s %v", matches[0], channel, timestamp, err)
+		return text
+	}
+	return text + "\n> " + message.Text
+}
+
 func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 	log.Info("Started Slack event listener")
 	var messageCache []slack.Msg
@@ -208,6 +223,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				log.Warningf("Empty user and message: %+v", ev.Msg)
 				continue
 			}
+			text = replacePermalinkWithText(ctx, text)
 			text = ctx.ExpandUserIds(text)
 			text = ExpandText(text)
 			messageCache = appendIfNotMoreThan(messageCache, ev.Msg)
