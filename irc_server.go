@@ -157,7 +157,7 @@ func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, id, topic string, members [
 	SendIrcNumeric(ctx, 366, fmt.Sprintf("%s %s", ctx.Nick(), name), "End of NAMES list")
 	ctx.ChanMutex.Lock()
 	ctx.Channels[name] = Channel{Topic: topic, Members: members, ID: id, IsGroup: isGroup}
-	log.Infof("Adding %s %v", name, ctx.Channels[name])
+	log.Infof("Joined channel %s: %+v", name, ctx.Channels[name])
 	ctx.ChanMutex.Unlock()
 }
 
@@ -420,9 +420,9 @@ func connectToSlack(ctx *IrcContext) error {
 		time.Sleep(100 * time.Millisecond)
 	}
 	log.Info("CLIENT INFO:")
-	log.Infof("  URL     : %v", info.URL)
-	log.Infof("  User    : %v", *info.User)
-	log.Infof("  Team    : %v", *info.Team)
+	log.Infof("  URL     : %s", info.URL)
+	log.Infof("  User    : %+v", *info.User)
+	log.Infof("  Team    : %+v", *info.Team)
 	user := ctx.GetUserInfo(info.User.ID)
 	if user == nil {
 		return fmt.Errorf("Cannot get info for user %s (ID: %s)", info.User.Name, info.User.ID)
