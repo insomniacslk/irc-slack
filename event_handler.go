@@ -72,7 +72,9 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 					name, openingText.User, ctx.ServerName,
 					channame, "", openingText.Text, "",
 				)
-				ctx.Conn.Write([]byte(privmsg))
+				if _, err := ctx.Conn.Write([]byte(privmsg)); err != nil {
+					log.Warningf("Failed to send IRC message: %v", err)
+				}
 			}
 			return channame
 		} else if channel.IsMpIM {
@@ -97,26 +99,34 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 		users, err := usersInConversation(ctx, msgChannel)
 		if err != nil {
 			// ERR_UNKNOWNERROR
-			SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Cannot get conversation info for %s", msgChannel))
+			if err := SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Cannot get conversation info for %s", msgChannel)); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
 			return ""
 		}
 		// we expect only two members in a direct message. Raise an
 		// error if not.
 		if len(users) != 2 {
 			// ERR_UNKNOWNERROR
-			SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Exactly two users expected in direct message, got %d (conversation ID: %s)", len(users), msgChannel))
+			if err := SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Exactly two users expected in direct message, got %d (conversation ID: %s)", len(users), msgChannel)); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
 			return ""
 
 		}
 		// of the two users, one is me. Otherwise fail
 		if ctx.UserID() == "" {
 			// ERR_UNKNOWNERROR
-			SendIrcNumeric(ctx, 400, ctx.UserID(), "Cannot get my own user ID")
+			if err := SendIrcNumeric(ctx, 400, ctx.UserID(), "Cannot get my own user ID"); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
 			return ""
 		}
 		if users[0] != ctx.UserID() && users[1] != ctx.UserID() {
 			// ERR_UNKNOWNERROR
-			SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Got a direct message where I am not part of the members list (members: %s)", strings.Join(users, ", ")))
+			if err := SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Got a direct message where I am not part of the members list (members: %s)", strings.Join(users, ", "))); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
 			return ""
 		}
 		var recipientID string
@@ -130,7 +140,9 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 		nickname := ctx.GetUserInfo(recipientID)
 		if nickname == nil {
 			// ERR_UNKNOWNERROR
-			SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Unknown destination user ID %s for direct message %s", recipientID, msgChannel))
+			if err := SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Unknown destination user ID %s for direct message %s", recipientID, msgChannel)); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
 			return ""
 		}
 		return nickname.Name
@@ -250,7 +262,9 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 					channame, linePrefix, line, lineSuffix,
 				)
 				log.Debug(privmsg)
-				ctx.Conn.Write([]byte(privmsg))
+				if _, err := ctx.Conn.Write([]byte(privmsg)); err != nil {
+					log.Warningf("Failed to send IRC message: %v", err)
+				}
 			}
 			msgEv := msg.Data.(*slack.MessageEvent)
 			// Check if the topic has changed
@@ -262,7 +276,9 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				} else {
 					newTopic := fmt.Sprintf(":%v TOPIC #%v :%v\r\n", ctx.Mask(), channel.Name, msgEv.Topic)
 					log.Infof("Got new topic: %v", newTopic)
-					ctx.Conn.Write([]byte(newTopic))
+					if _, err := ctx.Conn.Write([]byte(newTopic)); err != nil {
+						log.Warningf("Failed to send IRC message: %v", err)
+					}
 				}
 			}
 			// check if new people joined the channel
@@ -284,7 +300,9 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			// FIXME also send a JOIN / PART message to the IRC client
 			ctx.GetUsers(true)
 		case *slack.ChannelJoinedEvent:
-			ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), ev.Channel.Name)))
+			if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), ev.Channel.Name))); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
 		case *slack.ReactionAddedEvent:
 			channame := resolveChannelName(ctx, ev.Item.Channel, "")
 			user := ctx.GetUserInfo(ev.User)
@@ -320,7 +338,9 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				channame, ev.Reaction, msgText,
 			)
 			log.Debug(privmsg)
-			ctx.Conn.Write([]byte(privmsg))
+			if _, err := ctx.Conn.Write([]byte(privmsg)); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
 		case *slack.UserTypingEvent:
 			u := ctx.GetUserInfo(ev.User)
 			username := "<unknown>"
