@@ -47,10 +47,7 @@ func (s Server) HandleRequest(conn *net.TCPConn) {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			// clean up this client's state
-			if _, ok := UserContexts[conn.RemoteAddr()]; ok {
-				// remove from user contexts and users list
-				delete(UserContexts, conn.RemoteAddr())
-			}
+			delete(UserContexts, conn.RemoteAddr())
 			if err == io.EOF {
 				log.Warningf("Client %v disconnected", conn.RemoteAddr())
 				break

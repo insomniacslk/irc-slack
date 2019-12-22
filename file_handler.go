@@ -95,7 +95,6 @@ func (handler *FileHandler) Download(file slack.File) string {
 		if err != nil {
 			log.Warningf("Error writing %s: %v", fileURL, err)
 		}
-		return
 	}()
 	if handler.ProxyPrefix != "" {
 		return handler.ProxyPrefix + url.PathEscape(localFileName)

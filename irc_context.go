@@ -112,7 +112,9 @@ func (ic *IrcContext) Start() {
 				if message.TargetTs != "" {
 					opts = append(opts, slack.MsgOptionTS(message.TargetTs))
 				}
-				ic.SlackClient.PostMessage(target, opts...)
+				if _, _, err := ic.SlackClient.PostMessage(target, opts...); err != nil {
+					log.Warningf("Failed to post message to Slack to target %s: %v", target, err)
+				}
 			}
 			textBuffer = make(map[string]string)
 		}
@@ -132,7 +134,7 @@ func (ic *IrcContext) PostTextMessage(target, text, targetTs string) {
 // no user with that ID was found
 func (ic *IrcContext) GetUserInfo(userID string) *slack.User {
 	users := ic.GetUsers(false)
-	if users == nil || len(users) == 0 {
+	if len(users) == 0 {
 		return nil
 	}
 	// XXX this may be slow, convert user list to map?
@@ -148,7 +150,7 @@ func (ic *IrcContext) GetUserInfo(userID string) *slack.User {
 // nil if no user with that name was found
 func (ic *IrcContext) GetUserInfoByName(username string) *slack.User {
 	users := ic.GetUsers(false)
-	if users == nil || len(users) == 0 {
+	if len(users) == 0 {
 		return nil
 	}
 	for _, user := range users {
