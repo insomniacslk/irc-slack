@@ -359,18 +359,26 @@ func getTargetTs(channelName string) string {
 
 // IrcPrivMsgHandler is called when a PRIVMSG command is sent
 func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
-	if len(args) != 1 {
-		log.Warningf("Invalid PRIVMSG command args: %v", args)
+	channelParameter := ""
+	text := ""
+	if len(args) == 1 {
+		channelParameter = args[0]
+		text = trailing
+	} else if len(args) == 2 {
+		channelParameter = args[0]
+		text = args[1]
 	}
-	channel, ok := ctx.Channels[args[0]]
+	if channelParameter == "" || text == "" {
+		log.Warningf("Invalid PRIVMSG command args: %v %v", args, trailing)
+		return
+	}
+	channel, ok := ctx.Channels[channelParameter]
 	target := ""
 	if ok {
 		target = channel.ID
 	} else {
-		target = "@" + args[0]
+		target = "@" + channelParameter
 	}
-
-	text := trailing
 
 	if strings.HasPrefix(text, "\x01ACTION ") && strings.HasSuffix(text, "\x01") {
 		// The Slack API has a bug, where a chat.meMessage is
@@ -405,7 +413,7 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 	ctx.PostTextMessage(
 		target,
 		parseMentions(text),
-		getTargetTs(args[0]),
+		getTargetTs(channelParameter),
 	)
 }
 
