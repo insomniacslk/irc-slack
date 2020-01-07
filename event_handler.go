@@ -106,9 +106,9 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 		}
 		// we expect only two members in a direct message. Raise an
 		// error if not.
-		if len(users) != 2 {
+		if len(users) == 0 || len(users) > 2 {
 			// ERR_UNKNOWNERROR
-			if err := SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Exactly two users expected in direct message, got %d (conversation ID: %s)", len(users), msgChannel)); err != nil {
+			if err := SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Want 1 or 2 users in conversation, got %d (conversation ID: %s)", len(users), msgChannel)); err != nil {
 				log.Warningf("Failed to send IRC message: %v", err)
 			}
 			return ""
@@ -122,7 +122,15 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 			}
 			return ""
 		}
-		if users[0] != ctx.UserID() && users[1] != ctx.UserID() {
+		user1 := users[0]
+		var user2 string
+		if len(users) == 2 {
+			user2 = users[1]
+		} else {
+			// len is 1. Sending a message to myself
+			user2 = user1
+		}
+		if user1 != ctx.UserID() && user2 != ctx.UserID() {
 			// ERR_UNKNOWNERROR
 			if err := SendIrcNumeric(ctx, 400, ctx.UserID(), fmt.Sprintf("Got a direct message where I am not part of the members list (members: %s)", strings.Join(users, ", "))); err != nil {
 				log.Warningf("Failed to send IRC message: %v", err)
@@ -130,11 +138,11 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 			return ""
 		}
 		var recipientID string
-		if users[0] == ctx.UserID() {
+		if user1 == ctx.UserID() {
 			// then it's the other user
-			recipientID = users[1]
+			recipientID = user2
 		} else {
-			recipientID = users[0]
+			recipientID = user1
 		}
 		// now resolve the ID to the user's nickname
 		nickname := ctx.GetUserInfo(recipientID)
