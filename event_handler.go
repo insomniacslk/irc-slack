@@ -210,8 +210,12 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			user := ctx.GetUserInfo(ev.Msg.User)
 			name := ""
 			if user == nil {
-				log.Warningf("Failed to get user info for %v", ev.Msg.User)
-				name = ev.Msg.User
+				if ev.Msg.User != "" {
+					log.Warningf("Failed to get user info for %v %s", ev.Msg.User, ev.Msg.Username)
+					name = ev.Msg.User
+				} else {
+					name = ev.Msg.Username
+				}
 			} else {
 				name = user.Name
 			}
