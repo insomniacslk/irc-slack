@@ -338,6 +338,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 
 			msgText = ctx.ExpandUserIds(msgText)
 			msgText = ExpandText(msgText)
+			msgText = strings.Split(msgText, "\n")[0]
 
 			msgText = msgText[:int(math.Min(float64(len(msgText)), 100))]
 
