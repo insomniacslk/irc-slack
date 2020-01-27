@@ -209,7 +209,7 @@ func printMessage(ctx *IrcContext, message slack.Msg, prefix string) {
 			log.Warningf("Failed to get user info for %v %s", message.User, message.Username)
 			name = message.User
 		} else {
-			name = message.Username
+			name = strings.ReplaceAll(message.Username, " ", "_")
 		}
 	} else {
 		name = user.Name
