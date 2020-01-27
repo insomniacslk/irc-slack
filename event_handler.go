@@ -285,12 +285,12 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				editedMessage, err := getConversationDetails(ctx, message.Channel, message.Timestamp)
 				if err != nil {
 					fmt.Printf("could not get changed conversation details %s", err)
-					return
+					continue
 				}
 				log.Printf("edited msg chan %v", editedMessage.Msg.Channel)
 				editedMessage.Msg.Channel = message.Channel
 				printMessage(ctx, editedMessage.Msg, "(edited)")
-				return
+				continue
 			}
 			printMessage(ctx, message, "")
 
