@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+    "fmt"
+	"io/ioutil"
 	"net"
 	"os"
 
@@ -27,19 +29,37 @@ var (
 	chunkSize            = flag.Int("chunk", 512, "Maximum size of a line to send to the client. Only works for certain reply types")
 	fileDownloadLocation = flag.String("d", "", "If set will download attachments to this location")
 	fileProxyPrefix      = flag.String("l", "", "If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d")
-	doDebug              = flag.Bool("D", false, "Enable debug logging")
+    logLevel            = flag.String("L", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
 )
 
 var log = logger.GetLogger("main")
 
+var logLevels = map[string]func(*logrus.Logger){
+	"none":    func(l *logrus.Logger) { l.SetOutput(ioutil.Discard) },
+	"debug":   func(l *logrus.Logger) { l.SetLevel(logrus.DebugLevel) },
+	"info":    func(l *logrus.Logger) { l.SetLevel(logrus.InfoLevel) },
+	"warning": func(l *logrus.Logger) { l.SetLevel(logrus.WarnLevel) },
+	"error":   func(l *logrus.Logger) { l.SetLevel(logrus.ErrorLevel) },
+	"fatal":   func(l *logrus.Logger) { l.SetLevel(logrus.FatalLevel) },
+}
+
+func getLogLevels() []string {
+	var levels []string
+	for k := range logLevels {
+		levels = append(levels, k)
+	}
+	return levels
+}
+
 func main() {
 	flag.Parse()
 
-	if *doDebug {
-		log.Logger.SetLevel(logrus.DebugLevel)
-		log.Info("Enable debug logging")
+    fn, ok := logLevels[*logLevel]
+	if !ok {
+		log.Fatalf("Invalid log level '%s'. Valid log levels are %v", *logLevel, getLogLevels())
 	}
-
+    fn(log.Logger)
+    log.Infof("Setting log level to '%s'", *logLevel)
 	var sName string
 	if *serverName == "" {
 		sName = "localhost"
