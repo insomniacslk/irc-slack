@@ -201,100 +201,116 @@ func replacePermalinkWithText(ctx *IrcContext, text string) string {
 	return text + "\n> " + message.Text
 }
 
+func printMessage(ctx *IrcContext, message slack.Msg, prefix string) {
+	user := ctx.GetUserInfo(message.User)
+	name := ""
+	if user == nil {
+		if message.User != "" {
+			log.Warningf("Failed to get user info for %v %s", message.User, message.Username)
+			name = message.User
+		} else {
+			name = strings.ReplaceAll(message.Username, " ", "_")
+		}
+	} else {
+		name = user.Name
+	}
+	// get channel or other recipient (e.g. recipient of a direct message)
+	channame := resolveChannelName(ctx, message.Channel, message.ThreadTimestamp)
+
+	text := message.Text
+	for _, attachment := range message.Attachments {
+		text = joinText(text, attachment.Pretext, "\n")
+		text = joinText(text, attachment.Title, "\n")
+		if attachment.Text != "" {
+			text = joinText(text, attachment.Text, "\n")
+		} else {
+			text = joinText(text, attachment.Fallback, "\n")
+		}
+		text = joinText(text, attachment.ImageURL, "\n")
+	}
+	for _, file := range message.Files {
+		text = joinText(text, ctx.FileHandler.Download(file), " ")
+	}
+
+	log.Debugf("SLACK msg from %v (%v) on %v: %v",
+		message.User,
+		name,
+		message.Channel,
+		text,
+	)
+	if name == "" && text == "" {
+		log.Warningf("Empty username and message: %+v", message)
+		return
+	}
+	text = replacePermalinkWithText(ctx, text)
+	text = ctx.ExpandUserIds(text)
+	text = ExpandText(text)
+	text = joinText(prefix, text, " ")
+
+	// FIXME if two instances are connected to the Slack API at the
+	// same time, this will hide the other instance's message
+	// believing it was sent from here. But since it's not, both
+	// local echo and remote message won't be shown
+	botID := message.BotID
+	if name == ctx.Nick() && user != nil && botID != user.Profile.BotID {
+		// don't print my own messages
+		return
+	}
+	// handle multi-line messages
+	var linePrefix, lineSuffix string
+	if message.SubType == "me_message" {
+		// handle /me messages
+		linePrefix = "\x01ACTION "
+		lineSuffix = "\x01"
+	}
+	for _, line := range strings.Split(text, "\n") {
+		privmsg := fmt.Sprintf(":%v!%v@%v PRIVMSG %v :%s%s%s\r\n",
+			name, message.User, ctx.ServerName,
+			channame, linePrefix, line, lineSuffix,
+		)
+		log.Debug(privmsg)
+		if _, err := ctx.Conn.Write([]byte(privmsg)); err != nil {
+			log.Warningf("Failed to send IRC message: %v", err)
+		}
+	}
+}
+
 func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 	log.Info("Started Slack event listener")
-	var messageCache []slack.Msg
 	for msg := range rtm.IncomingEvents {
 		switch ev := msg.Data.(type) {
 		case *slack.MessageEvent:
-			user := ctx.GetUserInfo(ev.Msg.User)
-			name := ""
-			if user == nil {
-				if ev.Msg.User != "" {
-					log.Warningf("Failed to get user info for %v %s", ev.Msg.User, ev.Msg.Username)
-					name = ev.Msg.User
-				} else {
-					name = ev.Msg.Username
-				}
-			} else {
-				name = user.Name
-			}
-			// get channel or other recipient (e.g. recipient of a direct message)
-			channame := resolveChannelName(ctx, ev.Msg.Channel, ev.ThreadTimestamp)
-
-			text := ev.Msg.Text
-			for _, attachment := range ev.Msg.Attachments {
-				text = joinText(text, attachment.Pretext, "\n")
-				text = joinText(text, attachment.Title, "\n")
-				if attachment.Text != "" {
-					text = joinText(text, attachment.Text, "\n")
-				} else {
-					text = joinText(text, attachment.Fallback, "\n")
-				}
-				text = joinText(text, attachment.ImageURL, "\n")
-			}
-			for _, file := range ev.Msg.Files {
-				text = joinText(text, ctx.FileHandler.Download(file), " ")
-			}
-
-			log.Debugf("SLACK msg from %v (%v) on %v: %v",
-				ev.Msg.User,
-				name,
-				ev.Msg.Channel,
-				text,
-			)
-			if ev.Msg.User == "" && text == "" {
-				log.Warningf("Empty user and message: %+v", ev.Msg)
-				continue
-			}
-			text = replacePermalinkWithText(ctx, text)
-			text = ctx.ExpandUserIds(text)
-			text = ExpandText(text)
-			messageCache = appendIfNotMoreThan(messageCache, ev.Msg)
-
-			// FIXME if two instances are connected to the Slack API at the
-			// same time, this will hide the other instance's message
-			// believing it was sent from here. But since it's not, both
-			// local echo and remote message won't be shown
-			botID := msg.Data.(*slack.MessageEvent).BotID
-			if name == ctx.Nick() && user != nil && botID != user.Profile.BotID {
-				// don't print my own messages
-				continue
-			}
-			// handle multi-line messages
-			var linePrefix, lineSuffix string
-			if ev.Msg.SubType == "me_message" {
-				// handle /me messages
-				linePrefix = "\x01ACTION "
-				lineSuffix = "\x01"
-			}
-			for _, line := range strings.Split(text, "\n") {
-				privmsg := fmt.Sprintf(":%v!%v@%v PRIVMSG %v :%s%s%s\r\n",
-					name, ev.Msg.User, ctx.ServerName,
-					channame, linePrefix, line, lineSuffix,
-				)
-				log.Debug(privmsg)
-				if _, err := ctx.Conn.Write([]byte(privmsg)); err != nil {
-					log.Warningf("Failed to send IRC message: %v", err)
-				}
-			}
-			msgEv := msg.Data.(*slack.MessageEvent)
-			// Check if the topic has changed
-			if msgEv.Topic != ctx.Channels[msgEv.Channel].Topic {
-				// Send out new topic
-				channel, err := ctx.SlackClient.GetChannelInfo(msgEv.Channel)
+			message := ev.Msg
+			if message.SubType == "message_changed" {
+				editedMessage, err := getConversationDetails(ctx, message.Channel, message.Timestamp)
 				if err != nil {
-					log.Warningf("Cannot get channel name for %v", msgEv.Channel)
+					fmt.Printf("could not get changed conversation details %s", err)
+					continue
+				}
+				log.Printf("edited msg chan %v", editedMessage.Msg.Channel)
+				editedMessage.Msg.Channel = message.Channel
+				printMessage(ctx, editedMessage.Msg, "(edited)")
+				continue
+			}
+			printMessage(ctx, message, "")
+
+			// Check if the topic has changed
+			if message.Topic != ctx.Channels[message.Channel].Topic {
+				// Send out new topic
+				channel, err := ctx.SlackClient.GetChannelInfo(message.Channel)
+				if err != nil {
+					log.Warningf("Cannot get channel name for %v", message.Channel)
 				} else {
-					newTopic := fmt.Sprintf(":%v TOPIC #%v :%v\r\n", ctx.Mask(), channel.Name, msgEv.Topic)
+					newTopic := fmt.Sprintf(":%v TOPIC #%v :%v\r\n", ctx.Mask(), channel.Name, message.Topic)
 					log.Infof("Got new topic: %v", newTopic)
 					if _, err := ctx.Conn.Write([]byte(newTopic)); err != nil {
 						log.Warningf("Failed to send IRC message: %v", err)
 					}
 				}
 			}
+
 			// check if new people joined the channel
-			added, removed := ctx.Channels[msgEv.Channel].MembersDiff(msgEv.Members)
+			added, removed := ctx.Channels[message.Channel].MembersDiff(message.Members)
 			if len(added) > 0 || len(removed) > 0 {
 				log.Infof("[*] People who joined: %v", added)
 				log.Infof("[*] People who left: %v", removed)
@@ -325,20 +341,12 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			} else {
 				name = user.Name
 			}
-			msgText := ""
-			for _, msg := range messageCache {
-				if msg.Timestamp == ev.Item.Timestamp {
-					msgText = msg.Text
-					break
-				}
+			msg, err := getConversationDetails(ctx, ev.Item.Channel, ev.Item.Timestamp)
+			if err != nil {
+				fmt.Printf("could not get Conversation details %s", err)
+				continue
 			}
-			if msgText == "" {
-				msg, err := getConversationDetails(ctx, ev.Item.Channel, ev.Item.Timestamp)
-				if err != nil {
-					fmt.Printf("could not get Conversation details %s", err)
-				}
-				msgText = msg.Text
-			}
+			msgText := msg.Text
 
 			msgText = ctx.ExpandUserIds(msgText)
 			msgText = ExpandText(msgText)
