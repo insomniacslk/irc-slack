@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-    "fmt"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -29,7 +29,7 @@ var (
 	chunkSize            = flag.Int("chunk", 512, "Maximum size of a line to send to the client. Only works for certain reply types")
 	fileDownloadLocation = flag.String("d", "", "If set will download attachments to this location")
 	fileProxyPrefix      = flag.String("l", "", "If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d")
-    logLevel            = flag.String("L", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
+	logLevel             = flag.String("L", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
 )
 
 var log = logger.GetLogger("main")
@@ -54,12 +54,12 @@ func getLogLevels() []string {
 func main() {
 	flag.Parse()
 
-    fn, ok := logLevels[*logLevel]
+	fn, ok := logLevels[*logLevel]
 	if !ok {
 		log.Fatalf("Invalid log level '%s'. Valid log levels are %v", *logLevel, getLogLevels())
 	}
-    fn(log.Logger)
-    log.Infof("Setting log level to '%s'", *logLevel)
+	fn(log.Logger)
+	log.Infof("Setting log level to '%s'", *logLevel)
 	var sName string
 	if *serverName == "" {
 		sName = "localhost"
