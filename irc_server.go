@@ -40,21 +40,6 @@ var IrcCommandHandlers = map[string]IrcCommandHandler{
 	"TOPIC":   IrcTopicHandler,
 }
 
-// IrcNumericsSafeToChunk is a list of IRC numeric replies that are safe
-// to chunk. As per RFC2182, the maximum message size is 512, including
-// newlines. Sending longer lines breaks some clients like ZNC. See
-// https://github.com/insomniacslk/irc-slack/issues/38 for background.
-// This list is meant to grow if we find more IRC numerics that are safe
-// to split.
-// Being safe to split doesn't mean that it *will* be split. The actual
-// behaviour depends on the IrcContext.ChunkSize value.
-var IrcNumericsSafeToChunk = []int{
-	// RPL_WHOREPLY
-	352,
-	// RPL_NAMREPLY
-	353,
-}
-
 // SplitReply will split a reply message if necessary. See
 // IrcNumericSafeToChunk for background on why splitting.
 // The function will return a list of chunks to be sent
@@ -296,7 +281,7 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 	motd(fmt.Sprintf("This is an IRC-to-Slack gateway, written by %s <%s>.", ProjectAuthor, ProjectAuthorEmail))
 	motd(fmt.Sprintf("More information at %s.", ProjectURL))
 	motd(fmt.Sprintf("Slack team name: %s", ctx.SlackRTM.GetInfo().Team.Name))
-	motd(fmt.Sprintf("Your user info: "))
+	motd("Your user info: ")
 	motd(fmt.Sprintf("  Name     : %s", ctx.User.Name))
 	motd(fmt.Sprintf("  ID       : %s", ctx.User.ID))
 	motd(fmt.Sprintf("  RealName : %s", ctx.User.RealName))

@@ -159,13 +159,6 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 	return ""
 }
 
-func appendIfNotMoreThan(slice []slack.Msg, msg slack.Msg) []slack.Msg {
-	if len(slice) == 100 {
-		return append(slice[1:], msg)
-	}
-	return append(slice, msg)
-}
-
 func getConversationDetails(
 	ctx *IrcContext,
 	channelID string,
