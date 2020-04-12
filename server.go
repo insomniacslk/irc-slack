@@ -16,7 +16,7 @@ type Server struct {
 	LocalAddr            net.Addr
 	Listener             *net.TCPListener
 	SlackAPIKey          string
-	SlackDebug bool
+	SlackDebug           bool
 	ChunkSize            int
 	FileDownloadLocation string
 	FileProxyPrefix      string
@@ -105,7 +105,7 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 			Conn:              conn,
 			ServerName:        s.Name,
 			SlackAPIKey:       s.SlackAPIKey,
-			SlackDebug: s.SlackDebug,
+			SlackDebug:        s.SlackDebug,
 			ChunkSize:         s.ChunkSize,
 			postMessage:       make(chan SlackPostMessage),
 			conversationCache: make(map[string]*slack.Channel),

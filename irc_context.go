@@ -26,7 +26,7 @@ type IrcContext struct {
 	SlackClient       *slack.Client
 	SlackRTM          *slack.RTM
 	SlackAPIKey       string
-	SlackDebug bool
+	SlackDebug        bool
 	SlackConnected    bool
 	ServerName        string
 	Channels          map[string]Channel
