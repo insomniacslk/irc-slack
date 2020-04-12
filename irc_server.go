@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/slack-go/slack"
 	"github.com/sirupsen/logrus"
+	"github.com/slack-go/slack"
 )
 
 // Project constants
