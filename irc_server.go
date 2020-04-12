@@ -428,7 +428,11 @@ func (l *loggerWrapper) Output(calldepth int, s string) error {
 }
 
 func connectToSlack(ctx *IrcContext) error {
-	ctx.SlackClient = slack.New(ctx.SlackAPIKey, slack.OptionDebug(false), slack.OptionLog(&loggerWrapper{log.Logger}))
+	ctx.SlackClient = slack.New(
+		ctx.SlackAPIKey,
+		slack.OptionDebug(ctx.SlackDebug),
+		slack.OptionLog(&loggerWrapper{log.Logger}),
+	)
 	rtm := ctx.SlackClient.NewRTM()
 	ctx.SlackRTM = rtm
 	go rtm.ManageConnection()
