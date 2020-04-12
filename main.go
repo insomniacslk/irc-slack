@@ -30,7 +30,7 @@ var (
 	fileDownloadLocation = flag.String("d", "", "If set will download attachments to this location")
 	fileProxyPrefix      = flag.String("l", "", "If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d")
 	logLevel             = flag.String("L", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
-	flagSlackDebug = flag.Bool("D", false, "Enable debug logging of the Slack API")
+	flagSlackDebug       = flag.Bool("D", false, "Enable debug logging of the Slack API")
 )
 
 var log = logger.GetLogger("main")
@@ -86,7 +86,7 @@ func main() {
 		ChunkSize:            *chunkSize,
 		FileDownloadLocation: *fileDownloadLocation,
 		FileProxyPrefix:      *fileProxyPrefix,
-		SlackDebug: *flagSlackDebug,
+		SlackDebug:           *flagSlackDebug,
 	}
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
