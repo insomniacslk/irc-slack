@@ -11,6 +11,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
+	"github.com/coredhcp/coredhcp/logger"
 )
 
 // Project constants
@@ -416,10 +417,9 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		getTargetTs(channelParameter),
 	)
 }
-
 // wrapped logger that satisfies the slack.logger interface
 type loggerWrapper struct {
-	*logrus.Logger
+	*logrus.Entry
 }
 
 func (l *loggerWrapper) Output(calldepth int, s string) error {
@@ -431,7 +431,7 @@ func connectToSlack(ctx *IrcContext) error {
 	ctx.SlackClient = slack.New(
 		ctx.SlackAPIKey,
 		slack.OptionDebug(ctx.SlackDebug),
-		slack.OptionLog(&loggerWrapper{log.Logger}),
+		slack.OptionLog(&loggerWrapper{logger.GetLogger("slack-api")}),
 	)
 	rtm := ctx.SlackClient.NewRTM()
 	ctx.SlackRTM = rtm
