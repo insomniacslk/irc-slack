@@ -20,7 +20,7 @@ Please keep reporting bugs and sending PRs!
 ## How to use it
 
 ```
-go get ./...  # download the dependencies, currently just github.com/nlopes/slack
+go get ./...  # download the dependencies, currently just github.com/slack-go/slack
 go build
 ./irc-slack # by default on port 6666
 ```

@@ -5,7 +5,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/nlopes/slack"
+	"github.com/slack-go/slack"
 )
 
 func joinText(first string, second string, divider string) string {

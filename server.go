@@ -7,7 +7,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/nlopes/slack"
+	"github.com/slack-go/slack"
 )
 
 // Server is the server object that exposes the Slack API with an IRC interface.

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nlopes/slack"
+	"github.com/slack-go/slack"
 )
 
 // SlackPostMessage represents a message sent to slack api
