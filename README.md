@@ -27,6 +27,25 @@ go build
 
 Then configure your IRC client to connect to localhost:6666 and use a Slack legacy token as password. Get you Slack legacy token at https://api.slack.com/custom-integrations/legacy-tokens .
 
+Slack has announced that they will stop issuing legacy tokens starting the 4th
+of may 2020. As an alternative, you can install the irc-slack app, and get the token returned after you authorize it. The token starts with `xoxp-`.
+This is a Slack app with full user permissions, that is used to generate a Slack user token.
+
+Click on the button below to install the app:
+
+[![Authorize irc-slack](https://platform.slack-edge.com/img/add_to_slack.png)](https://slack.com/oauth/authorize?client_id=152572391990.1078733520672&scope=client)
+
+Then copy the token from the resulting page (it starts with `xoxp-`).
+
+This app exchanges your temporary authentication code with a permanent token.
+While the app does not log your token, you may rightfully not trust it or want
+to run your own. In order to do so, you need the two following steps:
+* create a Slack app using their v1 OauthV2 API (note: not their v2 version) at https://api.slack.com/apps
+* configure the redirect URL to your endpoint (in this case
+  https://my-server/irc-slack/auth/)
+* run the web app under [slackapp](slackapp/) passing your app client ID and client secret, you can find them in the Basic Information tab at the link at the previous step
+
+
 ## Run it with Docker
 
 Thanks to [halkeye](https://github.com/halkeye) you can run `irc-slack` via
