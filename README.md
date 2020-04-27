@@ -25,11 +25,31 @@ go build
 ./irc-slack # by default on port 6666
 ```
 
-Then configure your IRC client to connect to localhost:6666 and use a Slack legacy token as password. Get you Slack legacy token at https://api.slack.com/custom-integrations/legacy-tokens .
+Then configure your IRC client to connect to localhost:6666 and use one of the methods in the Tokens section to set the connection password.
 
+## Tokens
+
+### Legacy tokens
+
+This is the easiest method, but it's deprecated and Slack will disable it.
 Slack has announced that they will stop issuing legacy tokens starting the 4th
-of may 2020. As an alternative, you can install the irc-slack app, and get the token returned after you authorize it. The token starts with `xoxp-`.
+of May 2020, so this section will stay here for historical reasons.
+
+Get you Slack legacy token at https://api.slack.com/custom-integrations/legacy-tokens ,
+and set it as your IRC password when connecting to `irc-slack`.
+
+### Slack App tokens
+
+As an alternative to legacy tokens, you can install the irc-slack app on your workspace, and use the token that it returns
+after you authorize it. The source code of the app is available in this
+repository, see below for details.
+
+The token starts with `xoxp-`, and you can use it as your IRC password when
+connecting to `irc-slack`.
+
 This is a Slack app with full user permissions, that is used to generate a Slack user token.
+Note that you need to install this app on every workspace you want to use it
+for, and the workspace owners may reject it.
 
 Click on the button below to install the app:
 
@@ -45,6 +65,19 @@ to run your own. In order to do so, you need the two following steps:
   https://my-server/irc-slack/auth/)
 * run the web app under [slackapp](slackapp/) passing your app client ID and client secret, you can find them in the Basic Information tab at the link at the previous step
 
+
+### User tokens with auth cookie
+
+This is still a work in progress. It does not require legacy tokens nor
+installing any app, but getting the token requires to execute a few manual
+steps in your browser's console.
+
+This type of token starts with `xoxc-`, and requires an auth cookie to be paired
+to it in order to work.
+
+This is the same procedure as described in two similar projects, see:
+* https://github.com/adsr/irslackd/wiki/IRC-Client-Config#xoxc-tokens
+* https://github.com/ltworf/localslackirc/#obtain-a-token
 
 ## Run it with Docker
 
