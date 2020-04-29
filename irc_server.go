@@ -446,7 +446,6 @@ func (hc httpClient) Do(req *http.Request) (*http.Response, error) {
 			log.Warning("Cookie is set but connection is not HTTPS, skipping")
 		}
 	}
-	log.Debugf("HTTP request: %+v", req)
 	return hc.c.Do(req)
 }
 
