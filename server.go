@@ -20,6 +20,7 @@ type Server struct {
 	ChunkSize            int
 	FileDownloadLocation string
 	FileProxyPrefix      string
+	Pagination           int
 }
 
 // Start runs the IRC server
@@ -114,6 +115,7 @@ func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
 				FileDownloadLocation: s.FileDownloadLocation,
 				ProxyPrefix:          s.FileProxyPrefix,
 			},
+			Pagination: s.Pagination,
 		}
 		go ctx.Start()
 		UserContexts[conn.RemoteAddr()] = ctx

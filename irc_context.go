@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -36,6 +37,7 @@ type IrcContext struct {
 	postMessage       chan SlackPostMessage
 	conversationCache map[string]*slack.Channel
 	FileHandler       *FileHandler
+	Pagination        int
 }
 
 // Nick returns the nickname of the user, if known
@@ -59,7 +61,32 @@ func (ic *IrcContext) UserName() string {
 // to
 func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
 	if refresh || ic.Users == nil || len(ic.Users) == 0 {
-		users, err := ic.SlackClient.GetUsers()
+		var opts []slack.GetUsersOption
+		if ic.Pagination > 0 {
+			log.Debugf("Setting user pagination to %d", ic.Pagination)
+			opts = append(opts, slack.GetUsersOptionLimit(ic.Pagination))
+		}
+		up := ic.SlackClient.GetUsersPaginated(opts...)
+		var (
+			err   error
+			ctx   = context.Background()
+			users []slack.User
+			p     slack.UserPagination
+		)
+		for err == nil {
+			p, err = up.Next(ctx)
+			if err == nil {
+				users = append(users, p.Users...)
+				log.Debugf("Retrieved %d users (current total is %d)", len(p.Users), len(users))
+			} else if rateLimitedError, ok := err.(*slack.RateLimitedError); ok {
+				select {
+				case <-ctx.Done():
+					err = ctx.Err()
+				case <-time.After(rateLimitedError.RetryAfter):
+					err = nil
+				}
+			}
+		}
 		if err != nil {
 			log.Warningf("Failed to get users: %v", err)
 			return nil

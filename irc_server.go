@@ -439,7 +439,7 @@ type httpClient struct {
 
 func (hc httpClient) Do(req *http.Request) (*http.Response, error) {
 	if hc.cookie != "" {
-		log.Infof("Setting auth cookie")
+		log.Debugf("Setting auth cookie")
 		if strings.ToLower(req.URL.Scheme) == "https" {
 			req.Header.Add("Cookie", hc.cookie)
 		} else {
