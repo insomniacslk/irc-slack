@@ -79,6 +79,19 @@ This is the same procedure as described in two similar projects, see:
 * https://github.com/adsr/irslackd/wiki/IRC-Client-Config#xoxc-tokens
 * https://github.com/ltworf/localslackirc/#obtain-a-token
 
+But in short, log via browser on the Slack team, open the browser's network tab
+in the developer tools, and look for an XHR transaction. Then look for
+* the token (it starts with `xoxc-`) in the request data
+* the auth cookie, contained in the `d` key-value in the request cookies (it looks like `d=XXXX;`)
+
+Then concatenate the token and the auth cookie using a `|` character, like this:
+```
+xoxc-XXXX|d=XXXX;
+```
+
+and use the above as your connection password.
+
+
 ## Run it with Docker
 
 Thanks to [halkeye](https://github.com/halkeye) you can run `irc-slack` via
