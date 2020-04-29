@@ -6,6 +6,7 @@ FROM golang:1.12-alpine AS builder
 # Git is required for fetching the dependencies.
 RUN apk update && apk add --no-cache git
 COPY . $GOPATH/src/insomniacslk/irc-slack
+ENV GO111MODULE=on
 WORKDIR $GOPATH/src/insomniacslk/irc-slack
 # Fetch dependencies.
 # Using go get.
@@ -22,4 +23,4 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 # Copy our static executable.
 COPY --from=builder /go/bin/irc-slack /go/bin/irc-slack
 # Run the irc-slack binary.
-ENTRYPOINT ["/go/bin/irc-slack"]
+ENTRYPOINT ["/go/bin/irc-slack", "-H", "0.0.0.0"]
