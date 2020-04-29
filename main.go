@@ -31,6 +31,7 @@ var (
 	fileProxyPrefix      = flag.String("l", "", "If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d")
 	logLevel             = flag.String("L", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
 	flagSlackDebug       = flag.Bool("D", false, "Enable debug logging of the Slack API")
+	flagPagination       = flag.Int("P", 0, "Pagination value for API calls. If 0 or unspecified, use the recommended default (currently 200). Larger values can help on large Slack teams")
 )
 
 var log = logger.GetLogger("main")
@@ -87,6 +88,7 @@ func main() {
 		FileDownloadLocation: *fileDownloadLocation,
 		FileProxyPrefix:      *fileProxyPrefix,
 		SlackDebug:           *flagSlackDebug,
+		Pagination:           *flagPagination,
 	}
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
