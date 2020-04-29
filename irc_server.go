@@ -1,17 +1,19 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"html"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/coredhcp/coredhcp/logger"
 	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
-	"github.com/coredhcp/coredhcp/logger"
 )
 
 // Project constants
@@ -417,6 +419,7 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		getTargetTs(channelParameter),
 	)
 }
+
 // wrapped logger that satisfies the slack.logger interface
 type loggerWrapper struct {
 	*logrus.Entry
@@ -427,11 +430,59 @@ func (l *loggerWrapper) Output(calldepth int, s string) error {
 	return nil
 }
 
+// custom HTTP client used to set the auth cookie if requested, and only over
+// TLS.
+type httpClient struct {
+	c      http.Client
+	cookie string
+}
+
+func (hc httpClient) Do(req *http.Request) (*http.Response, error) {
+	if hc.cookie != "" {
+		log.Infof("Setting auth cookie")
+		if strings.ToLower(req.URL.Scheme) == "https" {
+			req.Header.Add("Cookie", hc.cookie)
+		} else {
+			log.Warning("Cookie is set but connection is not HTTPS, skipping")
+		}
+	}
+	log.Debugf("HTTP request: %+v", req)
+	return hc.c.Do(req)
+}
+
+// passwordToTokenAndCookie parses the password specified by the user into a
+// Slack token and optionally a cookie Auth cookies can be specified by
+//appending a "|" symbol and the base64-encoded auth cookie to the Slack token.
+func passwordToTokenAndCookie(p string) (string, string, error) {
+	parts := strings.Split(p, "|")
+
+	switch len(parts) {
+	case 1:
+		// XXX should check that the token starts with xoxp- ?
+		return parts[0], "", nil
+	case 2:
+		if !strings.HasPrefix(parts[0], "xoxc-") {
+			return "", "", errors.New("auth cookie is set, but token does not start with xoxc-")
+		}
+		if parts[1] == "" {
+			return "", "", errors.New("auth cookie is empty")
+		}
+		return parts[0], parts[1], nil
+	default:
+		return "", "", fmt.Errorf("failed to parse password into token and cookie, got %d components, want 1 or 2", len(parts))
+	}
+}
+
 func connectToSlack(ctx *IrcContext) error {
+	token, cookie, err := passwordToTokenAndCookie(ctx.SlackAPIKey)
+	if err != nil {
+		return err
+	}
 	ctx.SlackClient = slack.New(
-		ctx.SlackAPIKey,
+		token,
 		slack.OptionDebug(ctx.SlackDebug),
 		slack.OptionLog(&loggerWrapper{logger.GetLogger("slack-api")}),
+		slack.OptionHTTPClient(&httpClient{cookie: cookie}),
 	)
 	rtm := ctx.SlackClient.NewRTM()
 	ctx.SlackRTM = rtm
