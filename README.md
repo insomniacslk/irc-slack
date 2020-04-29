@@ -94,7 +94,7 @@ docker run insomniacslk/irc-slack
 ### Connecting with irssi
 ```
 /network add SlackYourTeamName
-/server add -auto SlackYourTeamName localhost 6666 xoxp-<your-slack-token>
+/server add -auto -network SlackYourTeamName localhost 6666 xoxp-<your-slack-token>
 ```
 
 
