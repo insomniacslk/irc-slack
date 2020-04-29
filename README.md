@@ -131,12 +131,13 @@ This currently "works for me", but I published it in the hope that someone would
 
 Plenty of them. I wrote this project while on a plane (like many other projects of mine) so this is hack-level quality - no proper design, no RFC compliance, no testing. I just fired up an IRC client until I could reasonably chat on a few Slack teams. Please report all the bugs you find on the Github issue tracker, or privately to me.
 
-## How do I contact you?
+## Authors
 
-Find my contacts on https://insomniac.slackware.it .
+* [Andrea Barberio](https://insomniac.slackware.it)
+* [Josip Janzic](https://github.com/janza)
 
 ## Thanks
 
 Special thanks to
 * Stefan Stasik for helping me find, fix and troubleshoot a zillion of bugs :)
-* [Mauro Codella](https://github.com/codella) for patiently reading and replying for two hours in a private conversation that I used to test the fix at [pull/23](https://github.com/insomniacslk/irc-slack/pull/23) :D 
+* [Mauro Codella](https://github.com/codella) for patiently reading and replying for two hours in a private conversation that I used to test the fix at [pull/23](https://github.com/insomniacslk/irc-slack/pull/23) :D
