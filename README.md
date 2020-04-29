@@ -84,10 +84,15 @@ This is the same procedure as described in two similar projects, see:
 Thanks to [halkeye](https://github.com/halkeye) you can run `irc-slack` via
 Docker. The `Dockerfile` is published on
 https://hub.docker.com/r/insomniacslk/irc-slack and will by default listen on
-`127.0.0.1:6666`. You can pull and run it with:
+`0.0.0.0:6666`. You can pull and run it with:
 
 ```
-docker run insomniacslk/irc-slack
+docker run --rm -p 6666:6666 insomniacslk/irc-slack
+```
+
+If you want to build it locally, just run:
+```
+docker build -f Dockerfile . -t insomniacslk/irc-slack
 ```
 
 
