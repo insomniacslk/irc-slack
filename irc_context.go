@@ -71,13 +71,12 @@ func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
 			err   error
 			ctx   = context.Background()
 			users []slack.User
-			p     slack.UserPagination
 		)
 		for err == nil {
-			p, err = up.Next(ctx)
+			up, err = up.Next(ctx)
 			if err == nil {
-				users = append(users, p.Users...)
-				log.Debugf("Retrieved %d users (current total is %d)", len(p.Users), len(users))
+				users = append(users, up.Users...)
+				log.Debugf("Retrieved %d users (current total is %d)", len(up.Users), len(users))
 			} else if rateLimitedError, ok := err.(*slack.RateLimitedError); ok {
 				select {
 				case <-ctx.Done():
@@ -87,6 +86,7 @@ func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
 				}
 			}
 		}
+		err = up.Failure(err)
 		if err != nil {
 			log.Warningf("Failed to get users: %v", err)
 			return nil
