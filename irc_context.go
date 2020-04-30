@@ -38,6 +38,7 @@ type IrcContext struct {
 	conversationCache map[string]*slack.Channel
 	FileHandler       *FileHandler
 	Pagination        int
+	usersMutex        sync.Mutex
 }
 
 // Nick returns the nickname of the user, if known
@@ -60,6 +61,8 @@ func (ic *IrcContext) UserName() string {
 // GetUsers returns a list of users of the Slack team the context is connected
 // to
 func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
+	ic.usersMutex.Lock()
+	defer ic.usersMutex.Unlock()
 	if refresh || ic.Users == nil || len(ic.Users) == 0 {
 		var opts []slack.GetUsersOption
 		if ic.Pagination > 0 {
@@ -87,6 +90,7 @@ func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
 				}
 			}
 		}
+		err = up.Failure(err)
 		if err != nil {
 			log.Warningf("Failed to get users: %v", err)
 			return nil
@@ -161,26 +165,17 @@ func (ic *IrcContext) PostTextMessage(target, text, targetTs string) {
 // GetUserInfo returns a slack.User instance from a given user ID, or nil if
 // no user with that ID was found
 func (ic *IrcContext) GetUserInfo(userID string) *slack.User {
-	users := ic.GetUsers(false)
-	if len(users) == 0 {
+	user, err := ic.SlackClient.GetUserInfo(userID)
+	if err != nil {
 		return nil
 	}
-	// XXX this may be slow, convert user list to map?
-	for _, user := range users {
-		if user.ID == userID {
-			return &user
-		}
-	}
-	return nil
+	return user
 }
 
 // GetUserInfoByName returns a slack.User instance from a given user name, or
 // nil if no user with that name was found
 func (ic *IrcContext) GetUserInfoByName(username string) *slack.User {
 	users := ic.GetUsers(false)
-	if len(users) == 0 {
-		return nil
-	}
 	for _, user := range users {
 		if user.Name == username {
 			return &user
@@ -206,9 +201,9 @@ func (ic IrcContext) Mask() string {
 // IDs. If an ID is unknown, it is returned unmodified in the output list
 func (ic IrcContext) UserIDsToNames(userIDs ...string) []string {
 	var names []string
-	// TODO implement using ic.GetUsers() instead
 	allUsers := ic.GetUsers(true)
 	usersMap := make(map[string]slack.User, len(allUsers))
+	// XXX this may be slow on large teams, convert user list to map?
 	for _, user := range allUsers {
 		usersMap[user.ID] = user
 	}

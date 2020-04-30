@@ -220,8 +220,7 @@ func join(ctx *IrcContext, id, name, topic string) error {
 	if err != nil {
 		return err
 	}
-	info := fmt.Sprintf("#%s topic=%s members=%d", name, topic, len(members))
-	log.Infof(info)
+	log.Infof("#%s topic=%s members=%d", name, topic, len(members))
 	// the channels are already joined, notify the IRC client of their
 	// existence
 	go IrcSendChanInfoAfterJoin(ctx, name, id, topic, members, false)
@@ -439,7 +438,6 @@ type httpClient struct {
 
 func (hc httpClient) Do(req *http.Request) (*http.Response, error) {
 	if hc.cookie != "" {
-		log.Debugf("Setting auth cookie")
 		if strings.ToLower(req.URL.Scheme) == "https" {
 			req.Header.Add("Cookie", hc.cookie)
 		} else {
@@ -504,7 +502,7 @@ func connectToSlack(ctx *IrcContext) error {
 	log.Info("CLIENT INFO:")
 	log.Infof("  URL     : %s", info.URL)
 	log.Infof("  User    : %+v", *info.User)
-	log.Infof("  Team    : %+v", *info.Team)
+	log.Infof("  Team    : %s (ID:%s)", info.Team.Name, info.Team.ID)
 	user := ctx.GetUserInfo(info.User.ID)
 	if user == nil {
 		return fmt.Errorf("Cannot get info for user %s (ID: %s)", info.User.Name, info.User.ID)
