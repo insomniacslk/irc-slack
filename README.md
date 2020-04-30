@@ -1,7 +1,7 @@
 # IRC-to-Slack gateway
 
-`irc-slack` is an IRC-to-Slack gateway. Run it locally, and it will spawn an IRC
-server that will let you use your Slack teams via IRC.
+`irc-slack` is an IRC-to-Slack gateway. It is an IRC server that lets you
+connect to your Slack teams with your IRC client.
 
 [![](images/team_chat_2x.png)](https://xkcd.com/1782/)
 
@@ -9,8 +9,8 @@ server that will let you use your Slack teams via IRC.
 
 Slack has ended support for IRC and XMPP gateway on the 15th of May 2018. So
 what's left to do for people like me, who want to still be able to log in via
-IRC? Either you use [wee-slack](https://github.com/wee-slack/wee-slack) (but I
-don't use WeeChat), or you implement your own stuff.
+IRC? Either you use [wee-slack](https://github.com/wee-slack/wee-slack) (~~but I
+don't use WeeChat~~), or you implement your own stuff.
 
 The code quality is currently at the `works-for-me` level, but it's improving steadily.
 
@@ -27,16 +27,52 @@ go build
 
 Then configure your IRC client to connect to localhost:6666 and use one of the methods in the Tokens section to set the connection password.
 
-## Tokens
+You can also [run it with Docker](#run-it-with-docker).
 
-### Legacy tokens
+## Encryption
 
-This is the easiest method, but it's deprecated and Slack will disable it.
-Slack has announced that they will stop issuing legacy tokens starting the 4th
-of May 2020, so this section will stay here for historical reasons.
+`irc-slack` provides no encryption between your IRC client and `irc-slack`, but
+the communication between `irc-slack` and the Slack servers is encrypted.
 
-Get you Slack legacy token at https://api.slack.com/custom-integrations/legacy-tokens ,
-and set it as your IRC password when connecting to `irc-slack`.
+It is not recommended to connect to `irc-slack` over the internet (i.e. run it on
+your loopback interface, as long as you trust your machines' users). If you need
+to do so, put a TLS proxy in front of it.
+
+## Authentication
+
+To connect to Slack via `irc-slack` you need an authentication string. There are
+three possible methods:
+* User tokens with auth cookies (recommended)
+* Slack app tokens (if you can install apps on your slack team)
+* legacy tokens (soon to be deprecated)
+
+These options are discussed in more detail below.
+
+
+### User tokens with auth cookie
+
+This is still a work in progress. It does not require legacy tokens nor
+installing any app, but getting the token requires to execute a few manual
+steps in your browser's console.
+
+This type of token starts with `xoxc-`, and requires an auth cookie to be paired
+to it in order to work.
+
+This is the same procedure as described in two similar projects, see:
+* https://github.com/adsr/irslackd/wiki/IRC-Client-Config#xoxc-tokens
+* https://github.com/ltworf/localslackirc/#obtain-a-token
+
+But in short, log via browser on the Slack team, open the browser's network tab
+in the developer tools, and look for an XHR transaction. Then look for
+* the token (it starts with `xoxc-`) in the request data
+* the auth cookie, contained in the `d` key-value in the request cookies (it looks like `d=XXXX;`)
+
+Then concatenate the token and the auth cookie using a `|` character, like this:
+```
+xoxc-XXXX|d=XXXX;
+```
+
+and use the above as your connection password.
 
 ### Slack App tokens
 
@@ -65,31 +101,14 @@ to run your own. In order to do so, you need the two following steps:
   https://my-server/irc-slack/auth/)
 * run the web app under [slackapp](slackapp/) passing your app client ID and client secret, you can find them in the Basic Information tab at the link at the previous step
 
+### Legacy tokens
 
-### User tokens with auth cookie
+This is the easiest method, but it's deprecated and Slack will soon disable it.
+Slack has announced that they will stop issuing legacy tokens starting the 4th
+of May 2020, so this section will stay here for historical reasons.
 
-This is still a work in progress. It does not require legacy tokens nor
-installing any app, but getting the token requires to execute a few manual
-steps in your browser's console.
-
-This type of token starts with `xoxc-`, and requires an auth cookie to be paired
-to it in order to work.
-
-This is the same procedure as described in two similar projects, see:
-* https://github.com/adsr/irslackd/wiki/IRC-Client-Config#xoxc-tokens
-* https://github.com/ltworf/localslackirc/#obtain-a-token
-
-But in short, log via browser on the Slack team, open the browser's network tab
-in the developer tools, and look for an XHR transaction. Then look for
-* the token (it starts with `xoxc-`) in the request data
-* the auth cookie, contained in the `d` key-value in the request cookies (it looks like `d=XXXX;`)
-
-Then concatenate the token and the auth cookie using a `|` character, like this:
-```
-xoxc-XXXX|d=XXXX;
-```
-
-and use the above as your connection password.
+Get you Slack legacy token at https://api.slack.com/custom-integrations/legacy-tokens ,
+and set it as your IRC password when connecting to `irc-slack`.
 
 
 ## Run it with Docker
@@ -130,8 +149,19 @@ There are a few options that you can pass to the server, e.g. to change the list
 ```
 $ ./irc-slack -h
 Usage of ./irc-slack:
+  -D    Enable debug logging of the Slack API
   -H string
         IP address to listen on (default "127.0.0.1")
+  -L string
+        Log level. One of [debug info warning error fatal none] (default "info")
+  -P int
+        Pagination value for API calls. If 0 or unspecified, use the recommended default (currently 200). Larger values can help on large Slack teams
+  -chunk int
+        Maximum size of a line to send to the client. Only works for certain reply types (default 512)
+  -d string
+        If set will download attachments to this location
+  -l string
+        If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d
   -p int
         Local port to listen on (default 6666)
   -s string
