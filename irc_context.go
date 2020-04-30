@@ -161,17 +161,12 @@ func (ic *IrcContext) PostTextMessage(target, text, targetTs string) {
 // GetUserInfo returns a slack.User instance from a given user ID, or nil if
 // no user with that ID was found
 func (ic *IrcContext) GetUserInfo(userID string) *slack.User {
-	users := ic.GetUsers(false)
-	if len(users) == 0 {
+	user, err := ic.SlackClient.GetUserInfo(userID)
+	if err != nil {
+		log.Warningf("Failed to get user info for user ID %s: %v", userID, err)
 		return nil
 	}
-	// XXX this may be slow, convert user list to map?
-	for _, user := range users {
-		if user.ID == userID {
-			return &user
-		}
-	}
-	return nil
+	return user
 }
 
 // GetUserInfoByName returns a slack.User instance from a given user name, or
