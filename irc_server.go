@@ -38,6 +38,7 @@ var IrcCommandHandlers = map[string]IrcCommandHandler{
 	"MODE":    IrcModeHandler,
 	"PASS":    IrcPassHandler,
 	"WHOIS":   IrcWhoisHandler,
+	"WHO":     IrcWhoHandler,
 	"JOIN":    IrcJoinHandler,
 	"PART":    IrcPartHandler,
 	"TOPIC":   IrcTopicHandler,
@@ -613,11 +614,71 @@ func IrcPassHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	ctx.FileHandler.SlackAPIKey = ctx.SlackAPIKey
 }
 
+// IrcWhoHandler is called when a WHO command is sent
+func IrcWhoHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
+	sendErr := func() {
+		// ERR_UNKNOWNERROR
+		if err := SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid WHO command. Syntax: WHO <nickname|channel>"); err != nil {
+			log.Warningf("Failed to send IRC message: %v", err)
+		}
+	}
+	if len(args) != 1 && len(args) != 2 {
+		sendErr()
+		return
+	}
+	target := args[0]
+	var rargs, desc string
+	if strings.HasPrefix(target, "#") {
+		ch, ok := ctx.Channels[target]
+		if !ok {
+			// ERR_NOSUCHCHANNEL
+			if err := SendIrcNumeric(ctx, 403, ctx.Nick(), fmt.Sprintf("No such channel %s", target)); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
+			return
+		}
+		for _, un := range ch.Members {
+			// FIXME can we use the cached users?
+			u := ctx.GetUserInfo(un)
+			if u == nil {
+				log.Warningf("Failed to get info for user name '%s'", un)
+				continue
+			}
+			log.Infof("%+v", u.Name)
+			rargs = fmt.Sprintf("%s %s %s %s %s *", target, u.ID, ctx.ServerName, ctx.ServerName, u.Name)
+			desc = fmt.Sprintf("0 %s", u.RealName)
+			// RPL_WHOREPLY
+			if err := SendIrcNumeric(ctx, 352, rargs, desc); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
+		}
+		// RPL_ENDOFWHO
+		if err := SendIrcNumeric(ctx, 315, target, "End of WHO list"); err != nil {
+			log.Warningf("Failed to send IRC message: %v", err)
+		}
+		return
+	}
+	user := ctx.GetUserInfoByName(target)
+	if user == nil {
+		// ERR_NOSUCHNICK
+		if err := SendIrcNumeric(ctx, 401, ctx.Nick(), fmt.Sprintf("No such nick %s", target)); err != nil {
+			log.Warningf("Failed to send IRC message: %v", err)
+		}
+		return
+	}
+	rargs = fmt.Sprintf("#general %s %s %s %s *", user.ID, ctx.ServerName, ctx.ServerName, user.Name)
+	desc = fmt.Sprintf("0 %s", user.RealName)
+	// RPL_WHOREPLY
+	if err := SendIrcNumeric(ctx, 352, rargs, desc); err != nil {
+		log.Warningf("Failed to send IRC message: %v", err)
+	}
+}
+
 // IrcWhoisHandler is called when a WHOIS command is sent
 func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 && len(args) != 2 {
 		// ERR_UNKNOWNERROR
-		if err := SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid WHOIS command"); err != nil {
+		if err := SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid WHOIS command. Syntax: WHOIS <username>"); err != nil {
 			log.Warningf("Failed to send IRC message: %v", err)
 		}
 		return
@@ -625,7 +686,10 @@ func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 	username := args[0]
 	// if the second argument is the same as the first, it's a request of WHOIS
 	// with idle time
-	// TODO handle idle time, args[1]
+	withIdleTime := false
+	if len(args) == 2 && args[0] == args[1] {
+		withIdleTime = true
+	}
 	user := ctx.GetUserInfoByName(username)
 	if user == nil {
 		// ERR_NOSUCHNICK
@@ -634,16 +698,24 @@ func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 		}
 	} else {
 		// RPL_WHOISUSER
-		if err := SendIrcNumeric(ctx, 311, fmt.Sprintf("%s %s %s %s *", username, user.Name, user.ID, "localhost"), user.RealName); err != nil {
+		if err := SendIrcNumeric(ctx, 311, fmt.Sprintf("%s %s %s %s *", username, user.Name, user.ID, ctx.ServerName), user.RealName); err != nil {
 			log.Warningf("Failed to send IRC message: %v", err)
 		}
 		// RPL_WHOISSERVER
 		if err := SendIrcNumeric(ctx, 312, fmt.Sprintf("%s %s", username, ctx.ServerName), ctx.ServerName); err != nil {
 			log.Warningf("Failed to send IRC message: %v", err)
 		}
-		// TODO send RPL_WHOISCHANNELS
+		// RPL_WHOISCHANNELS
+		// TODO get the user's channels
+		channels := []string{}
+		if err := SendIrcNumeric(ctx, 319, ctx.Nick(), fmt.Sprintf("%s %s", username, strings.Join(channels, " "))); err != nil {
+			log.Warningf("Failed to send IRC message: %v", err)
+		}
+		if withIdleTime {
+			// TODO send RPL_WHOISIDLE (317)
+		}
 		// RPL_ENDOFWHOIS
-		if err := SendIrcNumeric(ctx, 319, ctx.Nick(), username); err != nil {
+		if err := SendIrcNumeric(ctx, 318, ctx.Nick(), username); err != nil {
 			log.Warningf("Failed to send IRC message: %v", err)
 		}
 	}
