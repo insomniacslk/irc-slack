@@ -63,7 +63,11 @@ func (s Server) HandleRequest(conn *net.TCPConn) {
 
 // HandleMsg handles raw IRC messages
 func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
-	log.Debugf("%v: %v", conn.RemoteAddr(), msg)
+	if strings.HasPrefix(msg, "PASS ") {
+		log.Debugf("%v: PASS ***** (redacted for privacy)", conn.RemoteAddr())
+	} else {
+		log.Debugf("%v: %v", conn.RemoteAddr(), msg)
+	}
 	if len(msg) < 1 {
 		log.Warningf("Invalid message: '%v'", msg)
 		return
