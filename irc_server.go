@@ -603,7 +603,7 @@ func IrcModeHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 // IrcPassHandler is called when a PASS command is sent
 func IrcPassHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
-		log.Warningf("Invalid PASS arguments: %s", args)
+		log.Warningf("Invalid PASS arguments. Arguments are not shown for this method because they may contain Slack tokens or cookies")
 		// ERR_PASSWDMISMATCH
 		if err := SendIrcNumeric(ctx, 464, "", "Invalid password"); err != nil {
 			log.Warningf("Failed to send IRC message: %v", err)
