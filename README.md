@@ -168,6 +168,9 @@ Usage of ./irc-slack:
         IRC server name (i.e. the host name to send to clients)
 ```
 
+## Deploying with Puppet
+
+You can use the [irc-slack module for Puppet](https://github.com/b4ldr/puppet-irc_slack) by [John Bond](https://github.com/b4ldr).
 
 ## TODO
 
