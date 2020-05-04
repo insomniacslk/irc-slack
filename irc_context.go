@@ -20,7 +20,7 @@ type SlackPostMessage struct {
 
 // IrcContext holds the client context information
 type IrcContext struct {
-	Conn *net.TCPConn
+	Conn net.Conn
 	User *slack.User
 	// TODO make RealName a function
 	RealName          string

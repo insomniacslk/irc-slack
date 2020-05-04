@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -14,22 +15,27 @@ import (
 type Server struct {
 	Name                 string
 	LocalAddr            net.Addr
-	Listener             *net.TCPListener
+	Listener             net.Listener
 	SlackAPIKey          string
 	SlackDebug           bool
 	ChunkSize            int
 	FileDownloadLocation string
 	FileProxyPrefix      string
 	Pagination           int
+	TLSConfig            *tls.Config
 }
 
 // Start runs the IRC server
 func (s Server) Start() error {
-	listener, err := net.Listen("tcp", s.LocalAddr.String())
+	var err error
+	if s.TLSConfig != nil {
+		s.Listener, err = tls.Listen("tcp", s.LocalAddr.String(), s.TLSConfig)
+	} else {
+		s.Listener, err = net.Listen("tcp", s.LocalAddr.String())
+	}
 	if err != nil {
 		return err
 	}
-	s.Listener = listener.(*net.TCPListener)
 	defer s.Listener.Close()
 	log.Infof("Listening on %v", s.LocalAddr)
 	for {
@@ -37,12 +43,12 @@ func (s Server) Start() error {
 		if err != nil {
 			return fmt.Errorf("Error accepting: %v", err)
 		}
-		go s.HandleRequest(conn.(*net.TCPConn))
+		go s.HandleRequest(conn)
 	}
 }
 
 // HandleRequest handle IRC client connections
-func (s Server) HandleRequest(conn *net.TCPConn) {
+func (s Server) HandleRequest(conn net.Conn) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
 	for {
@@ -62,7 +68,7 @@ func (s Server) HandleRequest(conn *net.TCPConn) {
 }
 
 // HandleMsg handles raw IRC messages
-func (s *Server) HandleMsg(conn *net.TCPConn, msg string) {
+func (s *Server) HandleMsg(conn net.Conn, msg string) {
 	if strings.HasPrefix(msg, "PASS ") {
 		log.Debugf("%v: PASS ***** (redacted for privacy)", conn.RemoteAddr())
 	} else {

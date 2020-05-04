@@ -31,12 +31,28 @@ You can also [run it with Docker](#run-it-with-docker).
 
 ## Encryption
 
-`irc-slack` provides no encryption between your IRC client and `irc-slack`, but
-the communication between `irc-slack` and the Slack servers is encrypted.
+`irc-slack` by default does not use encryption when communicating with your IRC
+client (but the communication between `irc-slack` and the Slack servers is
+encrypted).
+If you want to use TLS, you can use the `-key` and `-cert` command line
+parameters, and point them to a TLS certificate that you own.
+This is useful if you plan to connect to to `irc-slack` over the internet.
 
-It is not recommended to connect to `irc-slack` over the internet (i.e. run it on
-your loopback interface, as long as you trust your machines' users). If you need
-to do so, put a TLS proxy in front of it.
+For example, you can generate a valid certificate with LetsEncrypt (adjust the relevant
+fields of course):
+```
+sudo certbot certonly \
+    -n \
+    -d your.domain.example.com \
+    --test-cert \
+    --standalone \
+    -m your@email.example.com \
+    --agree-tos
+```
+
+Then your key and certificate will be generated under
+`/etc/letsencrypt/live/your.domain.example.com`
+with the names `privkey.pem` and `cert.pem` respectively.
 
 ## Authentication
 
@@ -47,6 +63,8 @@ three possible methods:
 * legacy tokens (soon to be deprecated)
 
 These options are discussed in more detail below.
+Then just add `-key <path/to/privkey.pem> -cert <path/to/cert.pem>` to enable
+TLS on `irc-slack`, and enable TLS on your IRC client.
 
 
 ### User tokens with auth cookie
@@ -130,17 +148,32 @@ docker build -f Dockerfile . -t insomniacslk/irc-slack
 
 ### Connecting with irssi
 ```
-/network add SlackYourTeamName
-/server add -auto -network SlackYourTeamName localhost 6666 xoxp-<your-slack-token>
+/network add yourteam.slack.com
+/server add -auto -network yourteam.slack.com localhost 6666 xoxp-<your-slack-token>
+/connect yourteam.slack.com
 ```
 
+Remember to add `-tls` to the `/connect` command if you're running `irc-slack`
+with TLS.
+Also remember to replace `localhost` with the name of the host you're connecting to,
+if different.
 
 ### Connecting with WeeChat
 
 ```
 /server add yourteam.slack.com localhost/6666
 /set irc.server.yourteam.slack.com.password xoxp-<your-slack-token>
+/connect yourteam.slack.com
 ```
+
+To enable TLS, also run the following before the `/connect` command:
+```
+/set irc.server.yourteam.slack.com.ssl on
+/set irc.server.yourteam.slack.com.ssl_verify on
+```
+
+Also remember to replace `localhost` with the name of the host you're connecting to,
+if different.
 
 ## Gateway usage
 

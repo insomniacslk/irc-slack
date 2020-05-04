@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -32,6 +33,8 @@ var (
 	logLevel             = flag.String("L", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
 	flagSlackDebug       = flag.Bool("D", false, "Enable debug logging of the Slack API")
 	flagPagination       = flag.Int("P", 0, "Pagination value for API calls. If 0 or unspecified, use the recommended default (currently 200). Larger values can help on large Slack teams")
+	flagKey              = flag.String("key", "", "TLS key for HTTPS server. Requires -cert")
+	flagCert             = flag.String("cert", "", "TLS certificate for HTTPS server. Requires -key")
 )
 
 var log = logger.GetLogger("main")
@@ -81,6 +84,21 @@ func main() {
 			log.Fatalf("Missing or invalid download directory: %s", *fileDownloadLocation)
 		}
 	}
+	doTLS := false
+	if *flagKey != "" && *flagCert != "" {
+		doTLS = true
+	}
+	var tlsConfig *tls.Config
+	if doTLS {
+		if *flagKey == "" || *flagCert == "" {
+			log.Fatalf("-key and -cert must be specified together")
+		}
+		cert, err := tls.LoadX509KeyPair(*flagCert, *flagKey)
+		if err != nil {
+			log.Fatalf("Failed to load TLS key/cert: %v", err)
+		}
+		tlsConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
+	}
 	server := Server{
 		LocalAddr:            &localAddr,
 		Name:                 sName,
@@ -89,6 +107,7 @@ func main() {
 		FileProxyPrefix:      *fileProxyPrefix,
 		SlackDebug:           *flagSlackDebug,
 		Pagination:           *flagPagination,
+		TLSConfig:            tlsConfig,
 	}
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
