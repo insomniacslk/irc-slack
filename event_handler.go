@@ -320,18 +320,9 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			ctx.SlackConnected = true
 		case *slack.DisconnectedEvent:
 			de := msg.Data.(*slack.DisconnectedEvent)
-			log.Warningf("Disconnected from Slack (intentional: %v, cause: %s)", de.Intentional, de.Cause)
+			log.Warningf("Disconnected from Slack (intentional: %v, cause: %v)", de.Intentional, de.Cause)
 			ctx.SlackConnected = false
-			// only close the IRC client connection if the disconnection from
-			// Slack was intentional. Otherwise RTM.ManageConnection will retry
-			// automatically to connect. If reconnection fails, it will surface
-			// in a subsequent event, so it's safe here not to wait for a
-			// reconnection.
-			if de.Intentional {
-				if err := ctx.Conn.Close(); err != nil {
-					log.Warningf("Failed to close connection to IRC client: %v", err)
-				}
-			}
+			ctx.Conn.Close()
 			return
 		case *slack.MemberJoinedChannelEvent, *slack.MemberLeftChannelEvent:
 			// refresh the users list
