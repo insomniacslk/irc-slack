@@ -69,9 +69,8 @@ TLS on `irc-slack`, and enable TLS on your IRC client.
 
 ### User tokens with auth cookie
 
-This is still a work in progress. It does not require legacy tokens nor
-installing any app, but getting the token requires to execute a few manual
-steps in your browser's console.
+This approach does not require legacy tokens nor installing any app, but in order to
+get the token there are a few manual steps to execute in your browser's console.
 
 This type of token starts with `xoxc-`, and requires an auth cookie to be paired
 to it in order to work.
@@ -90,7 +89,9 @@ Then concatenate the token and the auth cookie using a `|` character, like this:
 xoxc-XXXX|d=XXXX;
 ```
 
-and use the above as your connection password.
+and use the above as your IRC password.
+
+Alternatively, you can try [autotoken](tools/autotoken).
 
 ### Slack App tokens
 
@@ -117,7 +118,7 @@ to run your own. In order to do so, you need the two following steps:
 * create a Slack app using their v1 OauthV2 API (note: not their v2 version) at https://api.slack.com/apps
 * configure the redirect URL to your endpoint (in this case
   https://my-server/irc-slack/auth/)
-* run the web app under [slackapp](slackapp/) passing your app client ID and client secret, you can find them in the Basic Information tab at the link at the previous step
+* run the web app under [slackapp](tools/slackapp/) passing your app client ID and client secret, you can find them in the Basic Information tab at the link at the previous step
 
 ### Legacy tokens
 

@@ -467,6 +467,9 @@ func passwordToTokenAndCookie(p string) (string, string, error) {
 		if parts[1] == "" {
 			return "", "", errors.New("auth cookie is empty")
 		}
+		if !strings.HasPrefix(parts[1], "d=") || !strings.HasSuffix(parts[1], ";") {
+			return "", "", errors.New("auth cookie must have the format 'd=XXX;'")
+		}
 		return parts[0], parts[1], nil
 	default:
 		return "", "", fmt.Errorf("failed to parse password into token and cookie, got %d components, want 1 or 2", len(parts))
