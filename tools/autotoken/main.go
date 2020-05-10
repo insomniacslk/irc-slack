@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -16,19 +17,29 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+var (
+	flagDebug = flag.Bool("d", false, "Enable debug log")
+)
+
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Fprintf(os.Stderr, "autotoken: log into slack team and get token and cookie.\n\nUsage: %s teamname[.slack.com] email [password]\n", os.Args[0])
+	usage := func() {
+		fmt.Fprintf(os.Stderr, "autotoken: log into slack team and get token and cookie.\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s [-d] teamname[.slack.com] email [password]\n", os.Args[0])
 		os.Exit(1)
 	}
-	team := os.Args[1]
+	flag.Usage = usage
+	flag.Parse()
+	if len(flag.Args()) < 2 {
+		usage()
+	}
+	team := flag.Arg(0)
 
 	if !strings.HasSuffix(team, ".slack.com") {
 		team += ".slack.com"
 	}
-	email := os.Args[2]
+	email := flag.Arg(1)
 	var password string
-	if len(os.Args) < 4 {
+	if len(flag.Args()) < 3 {
 		// get password via terminal
 		fmt.Fprintf(os.Stderr, "Enter your Slack password for user %s on team %s: ", email, team)
 		pbytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
@@ -38,11 +49,15 @@ func main() {
 		fmt.Println()
 		password = string(pbytes)
 	} else {
-		password = os.Args[3]
+		password = flag.Arg(2)
 	}
 	teamURL := "https://" + team
 
-	ctx, cancel := chromedp.NewContext(context.Background() /*, chromedp.WithDebugf(log.Printf)*/)
+	var opts []chromedp.ContextOption
+	if *flagDebug {
+		opts = append(opts, chromedp.WithDebugf(log.Printf))
+	}
+	ctx, cancel := chromedp.NewContext(context.Background(), opts...)
 	defer cancel()
 
 	fmt.Fprintf(os.Stderr, "Fetching token and cookie for %s on %s\n", email, team)
