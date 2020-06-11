@@ -282,6 +282,12 @@ func joinChannels(ctx *IrcContext) error {
 
 // IrcAfterLoggingIn is called once the user has successfully logged on IRC
 func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
+	if ctx.OrigName != ctx.Nick() {
+		// Force the user into the Slack nick
+		if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%s NICK %s\r\n", ctx.OrigName, ctx.Nick()))); err != nil {
+			log.Warningf("Failed to send IRC message: %v", err)
+		}
+	}
 	// Send a welcome to the user, to let the client knows that it's connected
 	// RPL_WELCOME
 	if err := SendIrcNumeric(ctx, 1, ctx.Nick(), fmt.Sprintf("Welcome to the %s IRC chat, %s!", ctx.ServerName, ctx.Nick())); err != nil {
@@ -528,40 +534,44 @@ func IrcNickHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 		log.Warningf("Invalid NICK command args: %v %v", args, trailing)
 		return
 	}
-	// The nickname cannot be changed here. Just set it to whatever Slack says
-	// you are.
-	if ctx.SlackClient == nil {
+
+	if ctx.SlackClient != nil {
+		if nick != ctx.Nick() {
+			// You cannot change nick, so force it back
+			if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%s NICK %s\r\n", nick, ctx.Nick()))); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
+		}
+		return
+	}
+
+	// We need the original nick later to change it
+	ctx.OrigName = nick
+
+	// If we're ready, connect
+	if ctx.RealName != "" && ctx.SlackAPIKey != "" {
 		if err := connectToSlack(ctx); err != nil {
 			log.Warningf("Cannot connect to Slack: %v", err)
 			// close the IRC connection to the client
 			ctx.Conn.Close()
 		}
 	}
-	// ctx.SlackRTM.GetInfo() should not be `nil` at this points. If it is, it's ok
-	// to panic here
-	if nick != ctx.Nick() {
-		// the client is trying to use a different nickname, let's tell them
-		// they can't.
-		// RPL_SAVENICK
-		if err := SendIrcNumeric(
-			ctx, 43, nick,
-			fmt.Sprintf("Your nickname is %s and cannot be changed", ctx.Nick()),
-		); err != nil {
-			log.Warningf("Failed to send IRC message: %v", err)
-		}
-	}
-	log.Infof("Setting nickname for %v to %v", ctx.Conn.RemoteAddr(), ctx.Nick())
 }
 
 // IrcUserHandler is called when a USER command is sent
 func IrcUserHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
-	if ctx.Nick() == "" {
-		log.Warning("Empty nickname!")
-		return
-	}
 	// ignore the user-specified username. Will use the Slack ID instead
 	// TODO get user info and set the real name with that info
 	ctx.RealName = trailing
+
+	// If we're ready, connect
+	if ctx.SlackClient == nil && ctx.SlackAPIKey != "" && ctx.OrigName != "" {
+		if err := connectToSlack(ctx); err != nil {
+			log.Warningf("Cannot connect to Slack: %v", err)
+			// close the IRC connection to the client
+			ctx.Conn.Close()
+		}
+	}
 }
 
 // IrcPingHandler is called when a PING command is sent
@@ -615,6 +625,15 @@ func IrcPassHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	}
 	ctx.SlackAPIKey = args[0]
 	ctx.FileHandler.SlackAPIKey = ctx.SlackAPIKey
+
+	// If we're ready, connect
+	if ctx.SlackClient == nil && ctx.RealName != "" && ctx.OrigName != "" {
+		if err := connectToSlack(ctx); err != nil {
+			log.Warningf("Cannot connect to Slack: %v", err)
+			// close the IRC connection to the client
+			ctx.Conn.Close()
+		}
+	}
 }
 
 // IrcWhoHandler is called when a WHO command is sent
