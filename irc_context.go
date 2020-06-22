@@ -24,6 +24,7 @@ type IrcContext struct {
 	User *slack.User
 	// TODO make RealName a function
 	RealName          string
+	OrigName          string
 	SlackClient       *slack.Client
 	SlackRTM          *slack.RTM
 	SlackAPIKey       string
