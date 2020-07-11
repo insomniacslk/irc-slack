@@ -1,5 +1,5 @@
-// Command submit is a chromedp example demonstrating how to fill out and
-// submit a form.
+// autotoken retrieves a Slack token and cookie using your Slack team
+// credentials.
 package main
 
 import (
@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
@@ -18,13 +19,15 @@ import (
 )
 
 var (
-	flagDebug = flag.Bool("d", false, "Enable debug log")
+	flagDebug       = flag.Bool("d", false, "Enable debug log")
+	flagShowBrowser = flag.Bool("show-browser", false, "show browser, useful for debugging")
+	flagMFA         = flag.String("mfa", "", "Provide a multi-factor authentication token (necessary if MFA is enabled on your account)")
 )
 
 func main() {
 	usage := func() {
 		fmt.Fprintf(os.Stderr, "autotoken: log into slack team and get token and cookie.\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [-d] teamname[.slack.com] email [password]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [-d] [-mfa <token>] teamname[.slack.com] email [password]\n", os.Args[0])
 		os.Exit(1)
 	}
 	flag.Usage = usage
@@ -57,22 +60,29 @@ func main() {
 	if *flagDebug {
 		opts = append(opts, chromedp.WithDebugf(log.Printf))
 	}
-	ctx, cancel := chromedp.NewContext(context.Background(), opts...)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// show browser
+	if *flagShowBrowser {
+		ctx, cancel = chromedp.NewExecAllocator(ctx, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
+		defer cancel()
+	}
+	ctx, cancel = chromedp.NewContext(ctx, opts...)
 	defer cancel()
 
 	fmt.Fprintf(os.Stderr, "Fetching token and cookie for %s on %s\n", email, team)
-	// run task list
-	var token, cookie string
-	err := chromedp.Run(ctx, submit(teamURL, `//input[@id="email"]`, email, `//input[@id="password"]`, password, &token, &cookie))
+	// run chromedp tasks
+	token, cookie, err := submit(ctx, teamURL, `//input[@id="email"]`, email, `//input[@id="password"]`, password, *flagMFA)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to get Slack token and cookie: %v", err)
 	}
 
 	fmt.Printf("%s|%s\n", token, cookie)
 }
 
-func submit(urlstr, selEmail, email, selPassword, password string, token, cookie *string) chromedp.Tasks {
-	return chromedp.Tasks{
+// submit authenticates through Slack and returns token and cookie, or an error.
+func submit(ctx context.Context, urlstr, selEmail, email, selPassword, password, mfa string) (string, string, error) {
+	tasks := chromedp.Tasks{
 		chromedp.Navigate(urlstr),
 		chromedp.WaitVisible(selEmail),
 		chromedp.SendKeys(selEmail, email),
@@ -80,7 +90,33 @@ func submit(urlstr, selEmail, email, selPassword, password string, token, cookie
 		chromedp.WaitVisible(selPassword),
 		chromedp.SendKeys(selPassword, password),
 		chromedp.Submit(selPassword),
-		chromedp.WaitVisible(`.p-workspace__primary_view_contents`),
+	}
+	if err := chromedp.Run(ctx, tasks); err != nil {
+		return "", "", fmt.Errorf("failed to send credentials: %w", err)
+	}
+	// submit MFA code if specified
+	if mfa != "" {
+		log.Printf("Sending MFA code")
+		selMFA := `//input[@class="auth_code"]`
+		mfaTasks := chromedp.Tasks{
+			chromedp.WaitVisible(".auth_code"),
+			chromedp.SendKeys(selMFA, mfa),
+			chromedp.Submit(selMFA),
+		}
+		if err := chromedp.Run(ctx, mfaTasks); err != nil {
+			return "", "", fmt.Errorf("failed to send MFA code: %w", err)
+		}
+	}
+
+	return extractTokenAndCookie(ctx)
+}
+
+// extractTokenAndCookie extracts Slack token and cookie from an existing
+// context.
+func extractTokenAndCookie(ctx context.Context) (string, string, error) {
+	var token, cookie string
+	tasks := chromedp.Tasks{
+		chromedp.WaitVisible(".p-workspace__primary_view_contents"),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			v, exp, err := runtime.Evaluate(`q=JSON.parse(localStorage.localConfig_v2)["teams"]; q[Object.keys(q)[0]]["token"]`).Do(ctx)
 			if err != nil {
@@ -89,7 +125,7 @@ func submit(urlstr, selEmail, email, selPassword, password string, token, cookie
 			if exp != nil {
 				return exp
 			}
-			if err := json.Unmarshal(v.Value, token); err != nil {
+			if err := json.Unmarshal(v.Value, &token); err != nil {
 				return fmt.Errorf("failed to unmarshal token: %v", err)
 			}
 			return nil
@@ -102,11 +138,15 @@ func submit(urlstr, selEmail, email, selPassword, password string, token, cookie
 
 			for _, c := range cookies {
 				if c.Name == "d" {
-					*cookie = fmt.Sprintf("d=%s;", c.Value)
+					cookie = fmt.Sprintf("d=%s;", c.Value)
 				}
 			}
 
 			return nil
 		}),
 	}
+	if err := chromedp.Run(ctx, tasks); err != nil {
+		return "", "", err
+	}
+	return token, cookie, nil
 }
