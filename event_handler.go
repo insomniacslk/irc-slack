@@ -280,6 +280,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 	for msg := range rtm.IncomingEvents {
 		switch ev := msg.Data.(type) {
 		case *slack.MessageEvent:
+			// https://api.slack.com/events/message
 			message := ev.Msg
 			if message.SubType == "message_changed" {
 				editedMessage, err := getConversationDetails(ctx, message.Channel, message.Timestamp)
@@ -325,14 +326,23 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			ctx.Conn.Close()
 			return
 		case *slack.MemberJoinedChannelEvent, *slack.MemberLeftChannelEvent:
-			// refresh the users list
-			// FIXME also send a JOIN / PART message to the IRC client
+			// https://api.slack.com/events/member_joined_channel
+			// https://api.slack.com/events/member_left_channel
+			// FIXME send a JOIN / PART message to the IRC client
+			log.Infof("Event: Member Joined/Left Channel: %+v", ev)
+		case *slack.TeamJoinEvent, *slack.UserChangeEvent:
+			// https://api.slack.com/events/team_join
+			// https://api.slack.com/events/user_change
+			// Refresh the users list
+			// TODO update just the new user
 			ctx.GetUsers(true)
 		case *slack.ChannelJoinedEvent:
+			// https://api.slack.com/events/channel_joined
 			if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), ev.Channel.Name))); err != nil {
 				log.Warningf("Failed to send IRC message: %v", err)
 			}
 		case *slack.ReactionAddedEvent:
+			// https://api.slack.com/events/reaction_added
 			channame := resolveChannelName(ctx, ev.Item.Channel, "")
 			user := ctx.GetUserInfo(ev.User)
 			name := ""
@@ -364,6 +374,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				log.Warningf("Failed to send IRC message: %v", err)
 			}
 		case *slack.UserTypingEvent:
+			// https://api.slack.com/events/user_typing
 			u := ctx.GetUserInfo(ev.User)
 			username := "<unknown>"
 			if u != nil {
@@ -377,7 +388,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			log.Infof("User %s (%s) is typing on channel %s (%s)", ev.User, username, ev.Channel, channame)
 		case *slack.DesktopNotificationEvent:
 			// TODO implement actions on notifications
-			log.Infof("Desktop notification: %+v", ev)
+			log.Infof("Event: Desktop notification: %+v", ev)
 		case *slack.LatencyReport:
 			log.Infof("Current Slack latency: %v", ev.Value)
 		case *slack.RTMError:
