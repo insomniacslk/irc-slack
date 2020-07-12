@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -33,12 +32,11 @@ type IrcContext struct {
 	ServerName        string
 	Channels          map[string]Channel
 	ChanMutex         *sync.Mutex
-	Users             []slack.User
+	Users             *Users
 	ChunkSize         int
 	postMessage       chan SlackPostMessage
 	conversationCache map[string]*slack.Channel
 	FileHandler       *FileHandler
-	Pagination        int
 }
 
 // Nick returns the nickname of the user, if known
@@ -60,40 +58,12 @@ func (ic *IrcContext) UserName() string {
 
 // GetUsers returns a list of users of the Slack team the context is connected
 // to
-func (ic *IrcContext) GetUsers(refresh bool) []slack.User {
-	if refresh || ic.Users == nil || len(ic.Users) == 0 {
-		var opts []slack.GetUsersOption
-		if ic.Pagination > 0 {
-			log.Debugf("Setting user pagination to %d", ic.Pagination)
-			opts = append(opts, slack.GetUsersOptionLimit(ic.Pagination))
+func (ic *IrcContext) GetUsers(refresh bool) *Users {
+	if refresh || ic.Users == nil || ic.Users.Count() == 0 {
+		if err := ic.Users.Fetch(ic.SlackClient); err != nil {
+			// if fetching failed, do not modify the existing users object
+			log.Warningf("Failed to fetch users: %v", err)
 		}
-		up := ic.SlackClient.GetUsersPaginated(opts...)
-		var (
-			err   error
-			ctx   = context.Background()
-			users []slack.User
-		)
-		for err == nil {
-			up, err = up.Next(ctx)
-			if err == nil {
-				users = append(users, up.Users...)
-				log.Debugf("Retrieved %d users (current total is %d)", len(up.Users), len(users))
-			} else if rateLimitedError, ok := err.(*slack.RateLimitedError); ok {
-				select {
-				case <-ctx.Done():
-					err = ctx.Err()
-				case <-time.After(rateLimitedError.RetryAfter):
-					err = nil
-				}
-			}
-		}
-		err = up.Failure(err)
-		if err != nil {
-			log.Warningf("Failed to get users: %v", err)
-			return nil
-		}
-		ic.Users = users
-		log.Infof("Fetched %v users", len(users))
 	}
 	return ic.Users
 }
@@ -162,27 +132,21 @@ func (ic *IrcContext) PostTextMessage(target, text, targetTs string) {
 // GetUserInfo returns a slack.User instance from a given user ID, or nil if
 // no user with that ID was found
 func (ic *IrcContext) GetUserInfo(userID string) *slack.User {
-	user, err := ic.SlackClient.GetUserInfo(userID)
-	if err != nil {
-		log.Warningf("Failed to get user info for user ID %s: %v", userID, err)
-		return nil
+	u := ic.Users.ByID(userID)
+	if u == nil {
+		log.Warningf("Unknown user ID '%s'", userID)
 	}
-	return user
+	return u
 }
 
 // GetUserInfoByName returns a slack.User instance from a given user name, or
 // nil if no user with that name was found
 func (ic *IrcContext) GetUserInfoByName(username string) *slack.User {
-	users := ic.GetUsers(false)
-	if len(users) == 0 {
-		return nil
+	u := ic.Users.ByName(username)
+	if u == nil {
+		log.Warningf("Unknown user name '%s'", username)
 	}
-	for _, user := range users {
-		if user.Name == username {
-			return &user
-		}
-	}
-	return nil
+	return u
 }
 
 // UserID returns the user's Slack ID
@@ -201,24 +165,7 @@ func (ic IrcContext) Mask() string {
 // UserIDsToNames returns a list of user names corresponding to a list of user
 // IDs. If an ID is unknown, it is returned unmodified in the output list
 func (ic IrcContext) UserIDsToNames(userIDs ...string) []string {
-	var names []string
-	// TODO implement using ic.GetUsers() instead
-	allUsers := ic.GetUsers(true)
-	usersMap := make(map[string]slack.User, len(allUsers))
-	for _, user := range allUsers {
-		usersMap[user.ID] = user
-	}
-	for _, uid := range userIDs {
-		user, ok := usersMap[uid]
-		if !ok {
-			names = append(names, uid)
-			log.Warningf("Could not fetch user %s, not in user map", uid)
-		} else {
-			names = append(names, user.Name)
-			log.Debugf("Fetched info for user ID %s: %s", uid, user.Name)
-		}
-	}
-	return names
+	return ic.Users.IDsToNames(userIDs...)
 }
 
 // GetConversationInfo is cached version of slack.GetConversationInfo

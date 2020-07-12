@@ -125,7 +125,7 @@ func (s *Server) HandleMsg(conn net.Conn, msg string) {
 				FileDownloadLocation: s.FileDownloadLocation,
 				ProxyPrefix:          s.FileProxyPrefix,
 			},
-			Pagination: s.Pagination,
+			Users: NewUsers(s.Pagination),
 		}
 		go ctx.Start()
 		UserContexts[conn.RemoteAddr()] = ctx

@@ -515,12 +515,18 @@ func connectToSlack(ctx *IrcContext) error {
 	log.Infof("  URL     : %s", info.URL)
 	log.Infof("  User    : %+v", *info.User)
 	log.Infof("  Team    : %+v", *info.Team)
-	user := ctx.GetUserInfo(info.User.ID)
-	if user == nil {
-		return fmt.Errorf("Cannot get info for user %s (ID: %s)", info.User.Name, info.User.ID)
+	// the users cache is not yet populated at this point, so we call the Slack
+	// API directly.
+	user, err := ctx.SlackClient.GetUserInfo(info.User.ID)
+	if err != nil {
+		return fmt.Errorf("Cannot get info for user %s (ID: %s): %v", info.User.Name, info.User.ID, err)
 	}
 	ctx.User = user
 	ctx.RealName = user.RealName
+	if err := ctx.Users.Fetch(ctx.SlackClient); err != nil {
+		log.Warningf("Failed to fetch users: %v", err)
+		ctx.Conn.Close()
+	}
 	return IrcAfterLoggingIn(ctx, rtm)
 }
 
