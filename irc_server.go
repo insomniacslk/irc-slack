@@ -493,6 +493,10 @@ func connectToSlack(ctx *IrcContext) error {
 		slack.OptionLog(&loggerWrapper{logger.GetLogger("slack-api")}),
 		slack.OptionHTTPClient(&httpClient{cookie: cookie}),
 	)
+	if cookie == "" {
+		// legacy token
+		ctx.usingLegacyToken = true
+	}
 	rtm := ctx.SlackClient.NewRTM()
 	ctx.SlackRTM = rtm
 	go rtm.ManageConnection()

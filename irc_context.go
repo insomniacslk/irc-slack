@@ -37,6 +37,8 @@ type IrcContext struct {
 	postMessage       chan SlackPostMessage
 	conversationCache map[string]*slack.Channel
 	FileHandler       *FileHandler
+	// set to `true` if we are using a deprecated legacy token, false otherwise
+	usingLegacyToken bool
 }
 
 // Nick returns the nickname of the user, if known
