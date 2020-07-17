@@ -247,14 +247,17 @@ func printMessage(ctx *IrcContext, message slack.Msg, prefix string) {
 	text = ExpandText(text)
 	text = joinText(prefix, text, " ")
 
-	// FIXME if two instances are connected to the Slack API at the
-	// same time, this will hide the other instance's message
-	// believing it was sent from here. But since it's not, both
-	// local echo and remote message won't be shown
-	botID := message.BotID
-	if name == ctx.Nick() && user != nil && botID != user.Profile.BotID {
-		// don't print my own messages
-		return
+	if name == ctx.Nick() {
+		botID := message.BotID
+		if (ctx.usingLegacyToken && user != nil && botID != user.Profile.BotID) ||
+			(!ctx.usingLegacyToken && message.ClientMsgID == "") {
+			// Don't print my own messages.
+			// When using legacy tokens, we distinguish our own messages sent
+			// from other clients by checking the bot ID.
+			// With new style tokens, we check the client message ID.
+			log.Debugf("Skipping message sent by me")
+			return
+		}
 	}
 	// handle multi-line messages
 	var linePrefix, lineSuffix string
