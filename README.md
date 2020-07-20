@@ -95,9 +95,13 @@ Alternatively, you can try [autotoken](tools/autotoken).
 
 ### Slack App tokens
 
-As an alternative to legacy tokens, you can install the irc-slack app on your workspace, and use the token that it returns
-after you authorize it. The source code of the app is available in this
-repository, see below for details.
+As an alternative, you can install the irc-slack app on your workspace, and use the token that it returns after you authorize it.
+
+In order to run the application, you need to do the following steps:
+* create a Slack app using their v1 OauthV2 API (note: not their v2 version) at https://api.slack.com/apps
+* configure the redirect URL to your endpoint (in this case
+  https://my-server/irc-slack/auth/)
+* run the web app under [slackapp](tools/slackapp/) passing your app client ID and client secret, you can find them in the Basic Information tab at the link at the previous step
 
 The token starts with `xoxp-`, and you can use it as your IRC password when
 connecting to `irc-slack`.
@@ -106,19 +110,7 @@ This is a Slack app with full user permissions, that is used to generate a Slack
 Note that you need to install this app on every workspace you want to use it
 for, and the workspace owners may reject it.
 
-Click on the button below to install the app:
-
-[![Authorize irc-slack](https://platform.slack-edge.com/img/add_to_slack.png)](https://slack.com/oauth/authorize?client_id=152572391990.1078733520672&scope=client)
-
-Then copy the token from the resulting page (it starts with `xoxp-`).
-
 This app exchanges your temporary authentication code with a permanent token.
-While the app does not log your token, you may rightfully not trust it or want
-to run your own. In order to do so, you need the two following steps:
-* create a Slack app using their v1 OauthV2 API (note: not their v2 version) at https://api.slack.com/apps
-* configure the redirect URL to your endpoint (in this case
-  https://my-server/irc-slack/auth/)
-* run the web app under [slackapp](tools/slackapp/) passing your app client ID and client secret, you can find them in the Basic Information tab at the link at the previous step
 
 ### Legacy tokens
 
