@@ -1,4 +1,4 @@
-package main
+package ircslack
 
 import (
 	"bufio"

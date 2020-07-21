@@ -1,4 +1,4 @@
-package main
+package ircslack
 
 // Channel represents an IRC channel. It maps to Slack's groups and channels.
 // Private messages are handled differently.

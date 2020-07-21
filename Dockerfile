@@ -7,10 +7,7 @@ FROM golang:1.12-alpine AS builder
 RUN apk update && apk add --no-cache git
 COPY . $GOPATH/src/insomniacslk/irc-slack
 ENV GO111MODULE=on
-WORKDIR $GOPATH/src/insomniacslk/irc-slack
-# Fetch dependencies.
-# Using go get.
-RUN go get -d -v
+WORKDIR $GOPATH/src/insomniacslk/irc-slack/cmd/irc-slack
 # Build the binary.
 RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /go/bin/irc-slack
 
