@@ -12,15 +12,13 @@ what's left to do for people like me, who want to still be able to log in via
 IRC? Either you use [wee-slack](https://github.com/wee-slack/wee-slack) (~~but I
 don't use WeeChat~~), or you implement your own stuff.
 
-The code quality is currently at the `works-for-me` level, but it's improving steadily.
-
 NOTE: after Slack turned down their IRC gateway I got a lot of contacts from users of irc-slack asking me to fix and improve it. I didn't expect people to actually use it, but thanks to your feedback I'm now actively developing it again :-)
 Please keep reporting bugs and sending PRs!
 
 ## How to use it
 
 ```
-go get ./...  # download the dependencies, currently just github.com/slack-go/slack
+cd cmd/irc-slack
 go build
 ./irc-slack # by default on port 6666
 ```
@@ -70,10 +68,16 @@ TLS on `irc-slack`, and enable TLS on your IRC client.
 ### User tokens with auth cookie
 
 This approach does not require legacy tokens nor installing any app, but in order to
-get the token there are a few manual steps to execute in your browser's console.
+get the token there are a few manual steps to execute.
 
 This type of token starts with `xoxc-`, and requires an auth cookie to be paired
 to it in order to work.
+
+There are two possible procedures, an entirely manual one, using the browser
+console, and a semi-automated one, which requires Chrome or Chromium in headless
+mode.
+
+**manual procedure via browser**
 
 This is the same procedure as described in two similar projects, see:
 * https://github.com/adsr/irslackd/wiki/IRC-Client-Config#xoxc-tokens
@@ -91,7 +95,10 @@ xoxc-XXXX|d=XXXX;
 
 and use the above as your IRC password.
 
-Alternatively, you can try [autotoken](tools/autotoken).
+**semi-automated procedure using Chrome/Chromium in headless mode**
+
+See [autotoken](tools/autotoken). Just build it with `go build` and run with
+`./autotoken -h` to see the usage help.
 
 ### Slack App tokens
 

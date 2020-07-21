@@ -8,6 +8,8 @@ import (
 	"net"
 	"os"
 
+	"github.com/insomniacslk/irc-slack/pkg/ircslack"
+
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/sirupsen/logrus"
 )
@@ -99,7 +101,7 @@ func main() {
 		}
 		tlsConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
 	}
-	server := Server{
+	server := ircslack.Server{
 		LocalAddr:            &localAddr,
 		Name:                 sName,
 		ChunkSize:            *chunkSize,
