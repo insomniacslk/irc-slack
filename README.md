@@ -182,23 +182,19 @@ There are a few options that you can pass to the server, e.g. to change the list
 ```
 $ ./irc-slack -h
 Usage of ./irc-slack:
-  -D    Enable debug logging of the Slack API
-  -H string
-        IP address to listen on (default "127.0.0.1")
-  -L string
-        Log level. One of [debug info warning error fatal none] (default "info")
-  -P int
-        Pagination value for API calls. If 0 or unspecified, use the recommended default (currently 200). Larger values can help on large Slack teams
-  -chunk int
-        Maximum size of a line to send to the client. Only works for certain reply types (default 512)
-  -d string
-        If set will download attachments to this location
-  -l string
-        If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d
-  -p int
-        Local port to listen on (default 6666)
-  -s string
-        IRC server name (i.e. the host name to send to clients)
+  -c, --cert string         TLS certificate for HTTPS server. Requires -key
+  -C, --chunk int           Maximum size of a line to send to the client. Only works for certain reply types (default 512)
+  -D, --debug               Enable debug logging of the Slack API
+  -d, --download string     If set will download attachments to this location
+  -l, --fileprefix string   If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d
+  -H, --host string         IP address to listen on (default "127.0.0.1")
+  -k, --key string          TLS key for HTTPS server. Requires -cert
+  -L, --loglevel string     Log level. One of [none debug info warning error fatal] (default "info")
+  -P, --pagination int      Pagination value for API calls. If 0 or unspecified, use the recommended default (currently 200). Larger values can help on large Slack teams
+  -p, --port int            Local port to listen on (default 6666)
+  -s, --server string       IRC server name (i.e. the host name to send to clients)
+pflag: help requested
+exit status 2
 ```
 
 ## Deploying with Puppet

@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -12,31 +11,23 @@ import (
 
 	"github.com/coredhcp/coredhcp/logger"
 	"github.com/sirupsen/logrus"
+	flag "github.com/spf13/pflag"
 )
 
-// TODO handle expired Slack RTM sessions (e.g. after standby/resume)
-// TODO better handling of QUIT
-// TODO handle channel/user MODE. Set it to +s on Slack groups (private channels)
-// TODO handle /me with the me_message subtype
-// TODO handle INVITE - InviteUserToChannel
-// TODO handle KICK - KickUserFromChannel
-// TODO handle return value from IrcSendNumeric
-
 // To authenticate, the IRC client has to send a PASS command with a Slack
-// legacy token for the desired team. See
-// https://api.slack.com/custom-integrations/legacy-tokens
+// legacy token for the desired team. See README.md for details.
 var (
-	port                 = flag.Int("p", 6666, "Local port to listen on")
-	host                 = flag.String("H", "127.0.0.1", "IP address to listen on")
-	serverName           = flag.String("s", "", "IRC server name (i.e. the host name to send to clients)")
-	chunkSize            = flag.Int("chunk", 512, "Maximum size of a line to send to the client. Only works for certain reply types")
-	fileDownloadLocation = flag.String("d", "", "If set will download attachments to this location")
-	fileProxyPrefix      = flag.String("l", "", "If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d")
-	logLevel             = flag.String("L", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
-	flagSlackDebug       = flag.Bool("D", false, "Enable debug logging of the Slack API")
-	flagPagination       = flag.Int("P", 0, "Pagination value for API calls. If 0 or unspecified, use the recommended default (currently 200). Larger values can help on large Slack teams")
-	flagKey              = flag.String("key", "", "TLS key for HTTPS server. Requires -cert")
-	flagCert             = flag.String("cert", "", "TLS certificate for HTTPS server. Requires -key")
+	port                 = flag.IntP("port", "p", 6666, "Local port to listen on")
+	host                 = flag.StringP("host", "H", "127.0.0.1", "IP address to listen on")
+	serverName           = flag.StringP("server", "s", "", "IRC server name (i.e. the host name to send to clients)")
+	chunkSize            = flag.IntP("chunk", "C", 512, "Maximum size of a line to send to the client. Only works for certain reply types")
+	fileDownloadLocation = flag.StringP("download", "d", "", "If set will download attachments to this location")
+	fileProxyPrefix      = flag.StringP("fileprefix", "l", "", "If set will overwrite urls to attachments with this prefix and local file name inside the path set with -d")
+	logLevel             = flag.StringP("loglevel", "L", "info", fmt.Sprintf("Log level. One of %v", getLogLevels()))
+	flagSlackDebug       = flag.BoolP("debug", "D", false, "Enable debug logging of the Slack API")
+	flagPagination       = flag.IntP("pagination", "P", 0, "Pagination value for API calls. If 0 or unspecified, use the recommended default (currently 200). Larger values can help on large Slack teams")
+	flagKey              = flag.StringP("key", "k", "", "TLS key for HTTPS server. Requires -cert")
+	flagCert             = flag.StringP("cert", "c", "", "TLS certificate for HTTPS server. Requires -key")
 )
 
 var log = logger.GetLogger("main")
