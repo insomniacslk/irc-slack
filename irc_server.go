@@ -745,6 +745,17 @@ func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 		if err := SendIrcNumeric(ctx, 312, fmt.Sprintf("%s %s %s", ctx.Nick(), username, ctx.ServerName), "irc-slack, https://github.com/insomniacslk/irc-slack"); err != nil {
 			log.Warningf("Failed to send IRC message: %v", err)
 		}
+		// Send additional user status information, abusing the RPL_WHOISSERVER
+		// reply. If there is a better method, please let us know!
+		if user.Profile.StatusText != "" || user.Profile.StatusEmoji != "" {
+			userStatus := fmt.Sprintf("user status: '%s' %s", user.Profile.StatusText, user.Profile.StatusEmoji)
+			if user.Profile.StatusExpiration != 0 {
+				userStatus += " until " + time.Unix(int64(user.Profile.StatusExpiration), 0).String()
+			}
+			if err := SendIrcNumeric(ctx, 312, fmt.Sprintf("%s %s %s", ctx.Nick(), username, ctx.ServerName), userStatus); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
+		}
 		// RPL_WHOISCHANNELS
 		// "<nick> :{[@|+]<channel><space>}"
 		var channels []string
