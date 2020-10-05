@@ -303,6 +303,10 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 			log.Warningf("Failed to send IRC message: %v", err)
 		}
 	}
+	// RPL_ISUPPORT
+	if err := SendIrcNumeric(ctx, 005, ctx.Nick(), "CHANTYPES=#+&"); err != nil {
+		log.Warningf("Failed to send IRC message: %v", err)
+	}
 	motd(fmt.Sprintf("This is an IRC-to-Slack gateway, written by %s <%s>.", ProjectAuthor, ProjectAuthorEmail))
 	motd(fmt.Sprintf("More information at %s.", ProjectURL))
 	motd(fmt.Sprintf("Slack team name: %s", ctx.SlackRTM.GetInfo().Team.Name))
