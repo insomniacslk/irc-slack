@@ -203,6 +203,8 @@ github.com/sirupsen/logrus v1.5.0 h1:1N5EYkVAPEywqZRJd7cwnRtCb6xJx7NH3T3WUTF980Q
 github.com/sirupsen/logrus v1.5.0/go.mod h1:+F7Ogzej0PZc/94MaYx/nvG9jOFMD2osvC3s+Squfpo=
 github.com/slack-go/slack v0.6.3 h1:qU037g8gQ71EuH6S9zYKnvYrEUj0fLFH4HFekFqBoRU=
 github.com/slack-go/slack v0.6.3/go.mod h1:HE4RwNe7YpOg/F0vqo5PwXH3Hki31TplTvKRW9dGGaw=
+github.com/slack-go/slack v0.7.0 h1:0t+Hh446VqaazWkaCuoyayHanTi7BJKY/GFSMMBcmEA=
+github.com/slack-go/slack v0.7.0/go.mod h1:FGqNzJBmxIsZURAxh2a8D21AnOVvvXZvGligs4npPUM=
 github.com/soheilhy/cmux v0.1.4/go.mod h1:IM3LyeVVIOuxMH7sFAkER9+bJ4dT7Ms6E4xg4kGIyLM=
 github.com/sourcegraph/go-diff v0.5.1/go.mod h1:j2dHj3m8aZgQO8lMTcTnBcXkRRRqi34cd2MNlA9u1mE=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
