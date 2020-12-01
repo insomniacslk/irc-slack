@@ -19,9 +19,11 @@ import (
 )
 
 var (
-	flagDebug       = flag.Bool("d", false, "Enable debug log")
-	flagShowBrowser = flag.Bool("show-browser", false, "show browser, useful for debugging")
-	flagMFA         = flag.String("mfa", "", "Provide a multi-factor authentication token (necessary if MFA is enabled on your account)")
+	flagDebug          = flag.Bool("d", false, "Enable debug log")
+	flagShowBrowser    = flag.Bool("show-browser", false, "show browser, useful for debugging")
+	flagMFA            = flag.String("mfa", "", "Provide a multi-factor authentication token (necessary if MFA is enabled on your account)")
+	flagWaitGDPRNotice = flag.Bool("gdpr", false, "Wait for Slack's GDPR notice pop-up before inserting username and password. Use this to work around login failures")
+	flagTimeout        = flag.Uint("t", 10, "Timeout in seconds")
 )
 
 func main() {
@@ -60,7 +62,7 @@ func main() {
 	if *flagDebug {
 		opts = append(opts, chromedp.WithDebugf(log.Printf))
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*flagTimeout)*time.Second)
 	defer cancel()
 	// show browser
 	if *flagShowBrowser {
@@ -72,7 +74,7 @@ func main() {
 
 	fmt.Fprintf(os.Stderr, "Fetching token and cookie for %s on %s\n", email, team)
 	// run chromedp tasks
-	token, cookie, err := submit(ctx, teamURL, `//input[@id="email"]`, email, `//input[@id="password"]`, password, *flagMFA)
+	token, cookie, err := submit(ctx, teamURL, `//input[@id="email"]`, email, `//input[@id="password"]`, password, *flagMFA, *flagWaitGDPRNotice)
 	if err != nil {
 		log.Fatalf("Failed to get Slack token and cookie: %v", err)
 	}
@@ -81,16 +83,21 @@ func main() {
 }
 
 // submit authenticates through Slack and returns token and cookie, or an error.
-func submit(ctx context.Context, urlstr, selEmail, email, selPassword, password, mfa string) (string, string, error) {
+func submit(ctx context.Context, urlstr, selEmail, email, selPassword, password, mfa string, waitGDPRNotice bool) (string, string, error) {
 	tasks := chromedp.Tasks{
 		chromedp.Navigate(urlstr),
+	}
+	if waitGDPRNotice {
+		tasks = append(tasks, chromedp.WaitVisible(`//button[@id="onetrust-accept-btn-handler"]`))
+	}
+	tasks = append(tasks,
 		chromedp.WaitVisible(selEmail),
 		chromedp.SendKeys(selEmail, email),
 		chromedp.Submit(selEmail),
 		chromedp.WaitVisible(selPassword),
 		chromedp.SendKeys(selPassword, password),
 		chromedp.Submit(selPassword),
-	}
+	)
 	if err := chromedp.Run(ctx, tasks); err != nil {
 		return "", "", fmt.Errorf("failed to send credentials: %w", err)
 	}
