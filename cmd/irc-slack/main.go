@@ -14,6 +14,13 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
+// Version information. Will be populated with the git revision and branch
+// information when running `make`.
+var (
+	ProgramName        = "irc-slack"
+	Version     string = "unknown (please build with `make`)"
+)
+
 // To authenticate, the IRC client has to send a PASS command with a Slack
 // legacy token for the desired team. See README.md for details.
 var (
@@ -28,6 +35,7 @@ var (
 	flagPagination       = flag.IntP("pagination", "P", 0, "Pagination value for API calls. If 0 or unspecified, use the recommended default (currently 200). Larger values can help on large Slack teams")
 	flagKey              = flag.StringP("key", "k", "", "TLS key for HTTPS server. Requires -cert")
 	flagCert             = flag.StringP("cert", "c", "", "TLS certificate for HTTPS server. Requires -key")
+	flagVersion          = flag.BoolP("version", "v", false, "Print version and exit")
 )
 
 var log = logger.GetLogger("main")
@@ -51,6 +59,10 @@ func getLogLevels() []string {
 
 func main() {
 	flag.Parse()
+	if *flagVersion {
+		fmt.Printf("%s version %s\n", ProgramName, Version)
+		os.Exit(0)
+	}
 
 	fn, ok := logLevels[*logLevel]
 	if !ok {
