@@ -19,7 +19,7 @@ Please keep reporting bugs and sending PRs!
 
 ```
 cd cmd/irc-slack
-go build
+make
 ./irc-slack # by default on port 6666
 ```
 

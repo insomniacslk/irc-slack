@@ -2,6 +2,10 @@
 # STEP 1 build executable binary
 ############################
 FROM golang:1.12-alpine AS builder
+
+LABEL BUILD="docker build -t insomniacslk/irc-slack -f Dockerfile ."
+LABEL RUN="docker run --rm -it insomniacslk/irc-slack"
+
 # Install git.
 # Git is required for fetching the dependencies.
 RUN apk update && apk add --no-cache git
@@ -20,4 +24,4 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 # Copy our static executable.
 COPY --from=builder /go/bin/irc-slack /go/bin/irc-slack
 # Run the irc-slack binary.
-ENTRYPOINT ["/go/bin/irc-slack", "-H", "0.0.0.0"]
+CMD ["/go/bin/irc-slack", "-H", "0.0.0.0"]

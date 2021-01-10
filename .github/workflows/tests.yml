@@ -1,0 +1,70 @@
+name: Tests
+
+on: [push, pull_request]
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.14', '1.15']
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # clone in the gopath
+          path: src/github.com/${{ github.repository }}
+      - uses: actions/setup-go@v2
+        with:
+          stable: false
+          go-version: ${{ matrix.go }}
+      - run: |
+          echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      - run: |
+          cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}/cmd/irc-slack
+          make
+          ./irc-slack --version
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.14', '1.15']
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # clone in the gopath
+          path: src/github.com/${{ github.repository }}
+      - uses: actions/setup-go@v2
+        with:
+          stable: false
+          go-version: ${{ matrix.go }}
+      - run: |
+          echo "GOPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      - run: |
+          cd $GITHUB_WORKSPACE/src/github.com/${{ github.repository }}
+          go get -v -t ./...
+          echo "" > coverage.txt
+          for d in $(go list ./...); do
+              go test -v -race -coverprofile=profile.out -covermode=atomic "${d}"
+              if [ -f profile.out ]; then
+                cat profile.out >> coverage.txt
+                rm profile.out
+              fi
+          done
+          bash <(curl -s https://codecov.io/bash) -c -f coverage.txt -F unittest
+  docker_publish:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKER_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to Docker hub
+        run: docker login -u $DOCKER_USER -p $DOCKER_PASS
+      - name: Build image
+        run: |
+          pwd
+          ls -l
+          docker build -t ${{ github.repository }} -f Dockerfile .
+      - name: Publish image
+        run: docker push ${{ github.repository }}
