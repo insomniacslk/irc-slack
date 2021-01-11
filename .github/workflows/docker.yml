@@ -1,0 +1,27 @@
+name: Docker push
+
+on:
+  push:
+    branches:
+      - master
+
+
+jobs:
+  docker_publish:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKER_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to Docker hub
+        run: docker login -u $DOCKER_USER -p $DOCKER_PASS
+      - name: Build image
+        run: |
+          pwd
+          ls -l
+          docker build -t ${{ github.repository }} -f Dockerfile .
+      - name: Publish image
+        run: |
+          docker tag ${{ github.repository }} ${{ github.repository }}:latest
+          docker push ${{ github.repository }}
