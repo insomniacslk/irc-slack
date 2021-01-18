@@ -58,6 +58,7 @@ func getLogLevels() []string {
 }
 
 func main() {
+	flag.CommandLine.SortFlags = false
 	flag.Parse()
 	if *flagVersion {
 		fmt.Printf("%s version %s\n", ProgramName, Version)
