@@ -285,7 +285,9 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 		case *slack.MessageEvent:
 			// https://api.slack.com/events/message
 			message := ev.Msg
-			if message.SubType == "message_changed" {
+			switch message.SubType {
+			case "message_changed":
+				// https://api.slack.com/events/message/message_changed
 				editedMessage, err := getConversationDetails(ctx, message.Channel, message.Timestamp)
 				if err != nil {
 					fmt.Printf("could not get changed conversation details %s", err)
@@ -295,11 +297,8 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				editedMessage.Msg.Channel = message.Channel
 				printMessage(ctx, editedMessage.Msg, "(edited)")
 				continue
-			}
-			printMessage(ctx, message, "")
-
-			// Check if the topic has changed
-			if message.Topic != ctx.Channels[message.Channel].Topic {
+			case "channel_topic":
+				// https://api.slack.com/events/message/channel_topic
 				// Send out new topic
 				channel, err := ctx.SlackClient.GetChannelInfo(message.Channel)
 				if err != nil {
@@ -311,13 +310,14 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 						log.Warningf("Failed to send IRC message: %v", err)
 					}
 				}
-			}
-
-			// check if new people joined the channel
-			added, removed := ctx.Channels[message.Channel].MembersDiff(message.Members)
-			if len(added) > 0 || len(removed) > 0 {
-				log.Infof("[*] People who joined: %v", added)
-				log.Infof("[*] People who left: %v", removed)
+			case "channel_join", "channel_leave":
+				// https://api.slack.com/events/message/channel_join
+				// https://api.slack.com/events/message/channel_leave
+				// Note: this is handled below by slack.MemberJoinedChannelEvent
+				// and slack.MemberLeftChannelEvent.
+				log.Infof("User %s has joined channel %s", message.User, message.Channel)
+			default:
+				printMessage(ctx, message, "")
 			}
 		case *slack.ConnectedEvent:
 			log.Info("Connected to Slack")
@@ -328,11 +328,14 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			ctx.SlackConnected = false
 			ctx.Conn.Close()
 			return
-		case *slack.MemberJoinedChannelEvent, *slack.MemberLeftChannelEvent:
+		case *slack.MemberJoinedChannelEvent:
 			// https://api.slack.com/events/member_joined_channel
+			// FIXME send a JOIN message to the IRC client
+			log.Infof("Event: Member Joined Channel: %+v", ev)
+		case *slack.MemberLeftChannelEvent:
 			// https://api.slack.com/events/member_left_channel
-			// FIXME send a JOIN / PART message to the IRC client
-			log.Infof("Event: Member Joined/Left Channel: %+v", ev)
+			// FIXME send a PART message to the IRC client
+			log.Infof("Event: Member Left Channel: %+v", ev)
 		case *slack.TeamJoinEvent, *slack.UserChangeEvent:
 			// https://api.slack.com/events/team_join
 			// https://api.slack.com/events/user_change
