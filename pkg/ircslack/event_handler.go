@@ -285,6 +285,9 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 		case *slack.MessageEvent:
 			// https://api.slack.com/events/message
 			message := ev.Msg
+			if message.Hidden {
+				continue
+			}
 			switch message.SubType {
 			case "message_changed":
 				// https://api.slack.com/events/message/message_changed
