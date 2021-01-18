@@ -23,7 +23,7 @@ var (
 	flagShowBrowser    = flag.Bool("show-browser", false, "show browser, useful for debugging")
 	flagMFA            = flag.String("mfa", "", "Provide a multi-factor authentication token (necessary if MFA is enabled on your account)")
 	flagWaitGDPRNotice = flag.Bool("gdpr", false, "Wait for Slack's GDPR notice pop-up before inserting username and password. Use this to work around login failures")
-	flagTimeout        = flag.Uint("t", 10, "Timeout in seconds")
+	flagTimeout        = flag.Uint("t", 30, "Timeout in seconds")
 )
 
 func main() {
@@ -89,12 +89,20 @@ func submit(ctx context.Context, urlstr, selEmail, email, selPassword, password,
 		chromedp.Navigate(urlstr),
 	}
 	if waitGDPRNotice {
-		tasks = append(tasks, chromedp.WaitVisible(`//button[@id="onetrust-accept-btn-handler"]`))
+		tasks = append(tasks,
+			chromedp.WaitVisible(`//*[@id="onetrust-pc-btn-handler"]`),
+			// give it some time to load the JS and finish the graphical transition
+			chromedp.Sleep(2*time.Second),
+			chromedp.Click(`//*[@id="onetrust-pc-btn-handler"]`),
+			chromedp.WaitVisible(`//*[@class="save-preference-btn-handler onetrust-close-btn-handler"]`),
+			// give it some time to load the JS and finish the graphical transition
+			chromedp.Sleep(2*time.Second),
+			chromedp.Click(`//*[@class="save-preference-btn-handler onetrust-close-btn-handler"]`),
+		)
 	}
 	tasks = append(tasks,
 		chromedp.WaitVisible(selEmail),
 		chromedp.SendKeys(selEmail, email),
-		chromedp.Submit(selEmail),
 		chromedp.WaitVisible(selPassword),
 		chromedp.SendKeys(selPassword, password),
 		chromedp.Submit(selPassword),
