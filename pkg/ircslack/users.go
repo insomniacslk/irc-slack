@@ -107,7 +107,7 @@ func (u *Users) IDsToNames(userIDs ...string) []string {
 		if u, ok := u.users[uid]; ok {
 			names = append(names, u.Name)
 		} else {
-			log.Warningf("Unknown user ID %s", uid)
+			log.Warningf("IDsToNames: unknown user ID %s", uid)
 		}
 	}
 	return names
