@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -15,34 +14,35 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/spf13/pflag"
 	"golang.org/x/term"
 )
 
 var (
-	flagDebug          = flag.Bool("d", false, "Enable debug log")
-	flagShowBrowser    = flag.Bool("show-browser", false, "show browser, useful for debugging")
-	flagMFA            = flag.String("mfa", "", "Provide a multi-factor authentication token (necessary if MFA is enabled on your account)")
-	flagWaitGDPRNotice = flag.Bool("gdpr", false, "Wait for Slack's GDPR notice pop-up before inserting username and password. Use this to work around login failures")
-	flagTimeout        = flag.Uint("t", 30, "Timeout in seconds")
+	flagDebug          = pflag.BoolP("debug", "d", false, "Enable debug log")
+	flagShowBrowser    = pflag.BoolP("show-browser", "b", false, "show browser, useful for debugging")
+	flagMFA            = pflag.StringP("mfa", "m", "", "Provide a multi-factor authentication token (necessary if MFA is enabled on your account)")
+	flagWaitGDPRNotice = pflag.BoolP("gdpr", "g", false, "Wait for Slack's GDPR notice pop-up before inserting username and password. Use this to work around login failures")
+	flagTimeout        = pflag.UintP("timeout", "t", 30, "Timeout in seconds")
 )
 
 func main() {
 	usage := func() {
 		fmt.Fprintf(os.Stderr, "autotoken: log into slack team and get token and cookie.\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s [-d] [-mfa <token>] [-gdpr] teamname[.slack.com] email [password]\n\n", os.Args[0])
-		flag.PrintDefaults()
+		pflag.PrintDefaults()
 		os.Exit(1)
 	}
-	flag.Usage = usage
-	flag.Parse()
-	if len(flag.Args()) < 2 {
+	pflag.Usage = usage
+	pflag.Parse()
+	if len(pflag.Args()) < 2 {
 		usage()
 	}
-	team := flag.Arg(0)
+	team := pflag.Arg(0)
 
-	email := flag.Arg(1)
+	email := pflag.Arg(1)
 	var password string
-	if len(flag.Args()) < 3 {
+	if len(pflag.Args()) < 3 {
 		// get password via terminal
 		fmt.Fprintf(os.Stderr, "Enter your Slack password for user %s on team %s: ", email, team)
 		pbytes, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -52,7 +52,7 @@ func main() {
 		fmt.Println()
 		password = string(pbytes)
 	} else {
-		password = flag.Arg(2)
+		password = pflag.Arg(2)
 	}
 
 	timeout := time.Duration(*flagTimeout) * time.Second
