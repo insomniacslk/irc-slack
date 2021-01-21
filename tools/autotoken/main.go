@@ -15,7 +15,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 var (
@@ -40,15 +40,12 @@ func main() {
 	}
 	team := flag.Arg(0)
 
-	if !strings.HasSuffix(team, ".slack.com") {
-		team += ".slack.com"
-	}
 	email := flag.Arg(1)
 	var password string
 	if len(flag.Args()) < 3 {
 		// get password via terminal
 		fmt.Fprintf(os.Stderr, "Enter your Slack password for user %s on team %s: ", email, team)
-		pbytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		pbytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			log.Fatalf("Failed to read password: %v", err)
 		}
@@ -57,30 +54,44 @@ func main() {
 	} else {
 		password = flag.Arg(2)
 	}
+
+	timeout := time.Duration(*flagTimeout) * time.Second
+	token, cookie, err := fetchCredentials(context.TODO(), team, email, password, *flagMFA, *flagWaitGDPRNotice, timeout, *flagShowBrowser, *flagDebug)
+	if err != nil {
+		log.Fatalf("Failed to fetch credentials for team `%s`: %v", team, err)
+	}
+
+	fmt.Printf("%s|%s\n", token, cookie)
+}
+
+// fetchCredentials fetches Slack token and cookie for a given team.
+func fetchCredentials(ctx context.Context, team, email, password, mfa string, waitGDPRNotice bool, timeout time.Duration, showBrowser, doDebug bool) (string, string, error) {
+	if !strings.HasSuffix(team, ".slack.com") {
+		team += ".slack.com"
+	}
 	teamURL := "https://" + team
 
-	var opts []chromedp.ContextOption
-	if *flagDebug {
-		opts = append(opts, chromedp.WithDebugf(log.Printf))
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*flagTimeout)*time.Second)
+	var cancel func()
+	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
+
 	// show browser
-	if *flagShowBrowser {
+	if showBrowser {
 		ctx, cancel = chromedp.NewExecAllocator(ctx, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
 		defer cancel()
 	}
+
+	var opts []chromedp.ContextOption
+	if doDebug {
+		opts = append(opts, chromedp.WithDebugf(log.Printf))
+	}
+
 	ctx, cancel = chromedp.NewContext(ctx, opts...)
 	defer cancel()
 
 	fmt.Fprintf(os.Stderr, "Fetching token and cookie for %s on %s\n", email, team)
 	// run chromedp tasks
-	token, cookie, err := submit(ctx, teamURL, `//input[@id="email"]`, email, `//input[@id="password"]`, password, *flagMFA, *flagWaitGDPRNotice)
-	if err != nil {
-		log.Fatalf("Failed to get Slack token and cookie: %v", err)
-	}
-
-	fmt.Printf("%s|%s\n", token, cookie)
+	return submit(ctx, teamURL, `//input[@id="email"]`, email, `//input[@id="password"]`, password, mfa, waitGDPRNotice)
 }
 
 // submit authenticates through Slack and returns token and cookie, or an error.
