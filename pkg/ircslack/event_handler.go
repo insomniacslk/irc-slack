@@ -314,9 +314,8 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			case "channel_join", "channel_leave":
 				// https://api.slack.com/events/message/channel_join
 				// https://api.slack.com/events/message/channel_leave
-				// Note: this is handled below by slack.MemberJoinedChannelEvent
+				// Note: this is handled by slack.MemberJoinedChannelEvent
 				// and slack.MemberLeftChannelEvent.
-				log.Infof("User %s has joined channel %s", message.User, message.Channel)
 			default:
 				printMessage(ctx, message, "")
 			}
@@ -330,13 +329,31 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			ctx.Conn.Close()
 			return
 		case *slack.MemberJoinedChannelEvent:
+			// This is the currently preferred way to notify when a user joins a
+			// channel, see https://api.slack.com/changelog/2017-05-rethinking-channel-entrance-and-exit-events-and-messages
 			// https://api.slack.com/events/member_joined_channel
-			// FIXME send a JOIN message to the IRC client
 			log.Infof("Event: Member Joined Channel: %+v", ev)
+			ch := ctx.Channels.ByID(ev.Channel)
+			if ch == nil {
+				log.Warningf("Unknown channel: %s", ev.Channel)
+				continue
+			}
+			if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), ch.Name))); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
 		case *slack.MemberLeftChannelEvent:
+			// This is the currently preferred way to notify when a user leaves a
+			// channel, see https://api.slack.com/changelog/2017-05-rethinking-channel-entrance-and-exit-events-and-messages
 			// https://api.slack.com/events/member_left_channel
-			// FIXME send a PART message to the IRC client
 			log.Infof("Event: Member Left Channel: %+v", ev)
+			ch := ctx.Channels.ByID(ev.Channel)
+			if ch == nil {
+				log.Warningf("Unknown channel: %s", ev.Channel)
+				continue
+			}
+			if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%v PART #%v\r\n", ctx.Mask(), ch.Name))); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
 		case *slack.TeamJoinEvent, *slack.UserChangeEvent:
 			// https://api.slack.com/events/team_join
 			// https://api.slack.com/events/user_change
@@ -345,11 +362,10 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			if err := ctx.Users.Fetch(ctx.SlackClient); err != nil {
 				log.Warningf("Failed to fetch users: %v", err)
 			}
-		case *slack.ChannelJoinedEvent:
+		case *slack.ChannelJoinedEvent, *slack.ChannelLeftEvent:
 			// https://api.slack.com/events/channel_joined
-			if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), ev.Channel.Name))); err != nil {
-				log.Warningf("Failed to send IRC message: %v", err)
-			}
+			// Note: this is handled by slack.MemberJoinedChannelEvent
+			// and slack.MemberLeftChannelEvent.
 		case *slack.ReactionAddedEvent:
 			// https://api.slack.com/events/reaction_added
 			channame := resolveChannelName(ctx, ev.Item.Channel, "")
