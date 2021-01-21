@@ -15,7 +15,7 @@ type Users struct {
 	pagination int
 }
 
-// NewUsers creates a new Users object
+// NewUsers creates a new Users object.
 func NewUsers(pagination int) *Users {
 	return &Users{
 		users:      make(map[string]slack.User),
