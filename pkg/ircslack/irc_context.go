@@ -58,18 +58,6 @@ func (ic *IrcContext) UserName() string {
 	return ic.User.ID
 }
 
-// GetUsers returns a list of users of the Slack team the context is connected
-// to
-func (ic *IrcContext) GetUsers(refresh bool) *Users {
-	if refresh || ic.Users == nil || ic.Users.Count() == 0 {
-		if err := ic.Users.Fetch(ic.SlackClient); err != nil {
-			// if fetching failed, do not modify the existing users object
-			log.Warningf("Failed to fetch users: %v", err)
-		}
-	}
-	return ic.Users
-}
-
 // GetThreadOpener returns text of the first message in a thread that provided message belongs to
 func (ic *IrcContext) GetThreadOpener(channel string, threadTimestamp string) (slack.Message, error) {
 	msgs, _, _, err := ic.SlackClient.GetConversationReplies(&slack.GetConversationRepliesParameters{

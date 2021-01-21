@@ -344,7 +344,9 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			// https://api.slack.com/events/user_change
 			// Refresh the users list
 			// TODO update just the new user
-			ctx.GetUsers(true)
+			if err := ctx.Users.Fetch(ctx.SlackClient); err != nil {
+				log.Warningf("Failed to fetch users: %v", err)
+			}
 		case *slack.ChannelJoinedEvent:
 			// https://api.slack.com/events/channel_joined
 			if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN #%v\r\n", ctx.Mask(), ev.Channel.Name))); err != nil {
