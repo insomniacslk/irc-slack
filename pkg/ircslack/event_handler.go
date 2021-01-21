@@ -43,8 +43,7 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 			return ""
 		} else if threadTimestamp != "" {
 			channame := formatThreadChannelName(threadTimestamp, channel)
-			_, ok := ctx.Channels[channame]
-			if !ok {
+			if ctx.Channels.ByName(channame) == nil {
 				openingText, err := ctx.GetThreadOpener(msgChannel, threadTimestamp)
 				if err == nil {
 					IrcSendChanInfoAfterJoin(
@@ -79,8 +78,7 @@ func resolveChannelName(ctx *IrcContext, msgChannel, threadTimestamp string) str
 			return channame
 		} else if channel.IsMpIM {
 			channame := formatMultipartyChannelName(msgChannel, channel.Name)
-			_, ok := ctx.Channels[channame]
-			if !ok {
+			if ctx.Channels.ByName(channame) == nil {
 				IrcSendChanInfoAfterJoin(
 					ctx,
 					channame,

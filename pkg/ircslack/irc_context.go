@@ -30,7 +30,7 @@ type IrcContext struct {
 	SlackDebug        bool
 	SlackConnected    bool
 	ServerName        string
-	Channels          map[string]Channel
+	Channels          *Channels
 	ChanMutex         *sync.Mutex
 	Users             *Users
 	ChunkSize         int

@@ -170,8 +170,7 @@ func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, id, topic string, members [
 		log.Warningf("Failed to send IRC message: %v", err)
 	}
 	ctx.ChanMutex.Lock()
-	ctx.Channels[name] = Channel{Topic: topic, Members: members, ID: id, IsGroup: isGroup}
-	log.Infof("Joined channel %s: %+v", name, ctx.Channels[name])
+	log.Infof("Joined channel %s: %+v", name, ctx.Channels.ByName(name))
 	ctx.ChanMutex.Unlock()
 }
 
@@ -319,7 +318,6 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 		log.Warningf("Failed to send IRC message: %v", err)
 	}
 
-	ctx.Channels = make(map[string]Channel)
 	ctx.ChanMutex = &sync.Mutex{}
 
 	// get channels
@@ -386,9 +384,9 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		log.Warningf("Invalid PRIVMSG command args: %v %v", args, trailing)
 		return
 	}
-	channel, ok := ctx.Channels[channelParameter]
+	channel := ctx.Channels.ByName(channelParameter)
 	target := ""
-	if ok {
+	if channel != nil {
 		target = channel.ID
 	} else {
 		target = "@" + channelParameter
@@ -401,8 +399,8 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 		// resolve the channel ID for chat.meMessage .
 		// TODO revert this when the bug in the Slack API is fixed
 		key := target
-		ch, ok := ctx.Channels[key]
-		if !ok {
+		ch := ctx.Channels.ByName(key)
+		if ch == nil {
 			log.Warningf("Unknown channel ID for %s", key)
 			return
 		}
@@ -532,8 +530,12 @@ func connectToSlack(ctx *IrcContext) error {
 	ctx.User = user
 	ctx.RealName = user.RealName
 	if err := ctx.Users.Fetch(ctx.SlackClient); err != nil {
-		log.Warningf("Failed to fetch users: %v", err)
 		ctx.Conn.Close()
+		return fmt.Errorf("Failed to fetch users: %v", err)
+	}
+	if err := ctx.Channels.Fetch(ctx.SlackClient); err != nil {
+		ctx.Conn.Close()
+		return fmt.Errorf("Failed to fetch channels: %v", err)
 	}
 	return IrcAfterLoggingIn(ctx, rtm)
 }
@@ -665,8 +667,8 @@ func IrcWhoHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing 
 	target := args[0]
 	var rargs, desc string
 	if strings.HasPrefix(target, "#") {
-		ch, ok := ctx.Channels[target]
-		if !ok {
+		ch := ctx.Channels.ByName(target)
+		if ch == nil {
 			// ERR_NOSUCHCHANNEL
 			if err := SendIrcNumeric(ctx, 403, ctx.Nick(), fmt.Sprintf("No such channel %s", target)); err != nil {
 				log.Warningf("Failed to send IRC message: %v", err)
@@ -763,7 +765,7 @@ func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 		// RPL_WHOISCHANNELS
 		// "<nick> :{[@|+]<channel><space>}"
 		var channels []string
-		for chname, ch := range ctx.Channels {
+		for chname, ch := range ctx.Channels.AsMap() {
 			for _, u := range ch.Members {
 				if u == user.ID {
 					channels = append(channels, chname)
@@ -879,8 +881,8 @@ func IrcTopicHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 	}
 	channame := args[0]
 	topic := trailing
-	channel, ok := ctx.Channels[channame]
-	if !ok {
+	channel := ctx.Channels.ByName(channame)
+	if channel == nil {
 		log.Warningf("IrcTopicHandler: unknown channel %s", channame)
 		return
 	}
