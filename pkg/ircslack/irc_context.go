@@ -124,7 +124,7 @@ func (ic *IrcContext) PostTextMessage(target, text, targetTs string) {
 func (ic *IrcContext) GetUserInfo(userID string) *slack.User {
 	u := ic.Users.ByID(userID)
 	if u == nil {
-		log.Warningf("Unknown user ID '%s'", userID)
+		log.Warningf("GetUserInfo: unknown user ID '%s'", userID)
 	}
 	return u
 }
@@ -134,7 +134,7 @@ func (ic *IrcContext) GetUserInfo(userID string) *slack.User {
 func (ic *IrcContext) GetUserInfoByName(username string) *slack.User {
 	u := ic.Users.ByName(username)
 	if u == nil {
-		log.Warningf("Unknown user name '%s'", username)
+		log.Warningf("GetUserInfoByName: unknown user name '%s'", username)
 	}
 	return u
 }
@@ -150,12 +150,6 @@ func (ic IrcContext) UserID() string {
 // Mask returns the IRC mask for the current user
 func (ic IrcContext) Mask() string {
 	return fmt.Sprintf("%v!%v@%v", ic.Nick(), ic.UserName(), ic.Conn.RemoteAddr().(*net.TCPAddr).IP)
-}
-
-// UserIDsToNames returns a list of user names corresponding to a list of user
-// IDs. If an ID is unknown, it is returned unmodified in the output list
-func (ic IrcContext) UserIDsToNames(userIDs ...string) []string {
-	return ic.Users.IDsToNames(userIDs...)
 }
 
 // GetConversationInfo is cached version of slack.GetConversationInfo

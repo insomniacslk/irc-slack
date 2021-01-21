@@ -162,7 +162,7 @@ func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, id, topic string, members [
 		log.Warningf("Failed to send IRC message: %v", err)
 	}
 	// RPL_NAMREPLY
-	if err := SendIrcNumeric(ctx, 353, fmt.Sprintf("%s = %s", ctx.Nick(), name), strings.Join(ctx.UserIDsToNames(members...), " ")); err != nil {
+	if err := SendIrcNumeric(ctx, 353, fmt.Sprintf("%s = %s", ctx.Nick(), name), strings.Join(ctx.Users.IDsToNames(members...), " ")); err != nil {
 		log.Warningf("Failed to send IRC message: %v", err)
 	}
 	// RPL_ENDOFNAMES
