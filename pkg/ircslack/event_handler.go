@@ -354,12 +354,16 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%v PART #%v\r\n", ctx.Mask(), ch.Name))); err != nil {
 				log.Warningf("Failed to send IRC message: %v", err)
 			}
-		case *slack.TeamJoinEvent, *slack.UserChangeEvent:
+		case *slack.TeamJoinEvent:
 			// https://api.slack.com/events/team_join
+			// update the users list
+			if err := ctx.Users.FetchByIDs(ctx.SlackClient, false, ev.User.ID); err != nil {
+				log.Warningf("Failed to fetch users: %v", err)
+			}
+		case *slack.UserChangeEvent:
 			// https://api.slack.com/events/user_change
-			// Refresh the users list
-			// TODO update just the new user
-			if err := ctx.Users.Fetch(ctx.SlackClient); err != nil {
+			// update the user list
+			if err := ctx.Users.FetchByIDs(ctx.SlackClient, false, ev.User.ID); err != nil {
 				log.Warningf("Failed to fetch users: %v", err)
 			}
 		case *slack.ChannelJoinedEvent, *slack.ChannelLeftEvent:
