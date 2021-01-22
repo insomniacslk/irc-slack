@@ -23,6 +23,42 @@ func NewUsers(pagination int) *Users {
 	}
 }
 
+// FetchByIDs fetches the users from the specified IDs and updates the internal
+// user mapping.
+func (u *Users) FetchByIDs(client *slack.Client, skipCache bool, userIDs ...string) error {
+	var toRetrieve []string
+	if !skipCache {
+		u.mu.Lock()
+		for _, uid := range userIDs {
+			if _, ok := u.users[uid]; !ok {
+				toRetrieve = append(toRetrieve, uid)
+			}
+		}
+		u.mu.Unlock()
+		log.Debugf("Fetching information for %d users out of %d (%d already in cache)", len(toRetrieve), len(userIDs), len(userIDs)-len(toRetrieve))
+	} else {
+		toRetrieve = userIDs
+	}
+	chunkSize := 1000
+	for i := 0; i < len(toRetrieve); i += chunkSize {
+		upperLimit := i + chunkSize
+		if upperLimit > len(toRetrieve) {
+			upperLimit = len(toRetrieve)
+		}
+		slackUsers, err := client.GetUsersInfo(toRetrieve[i:upperLimit]...)
+		if err != nil {
+			return err
+		}
+		// also update the local users map
+		u.mu.Lock()
+		for _, user := range *slackUsers {
+			u.users[user.ID] = user
+		}
+		u.mu.Unlock()
+	}
+	return nil
+}
+
 // Fetch retrieves all the users on a given Slack team. The Slack client has to
 // be valid and connected.
 func (u *Users) Fetch(client *slack.Client) error {
