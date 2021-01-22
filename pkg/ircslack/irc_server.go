@@ -189,7 +189,7 @@ func usersInConversation(ctx *IrcContext, conversation string) ([]string, error)
 				return nil, fmt.Errorf("GetUsersInConversation: exceeded the maximum number of attempts (%d) with the Slack API", MaxSlackAPIAttempts)
 			}
 			log.Debugf("GetUsersInConversation: page %d attempt #%d nextCursor=%s", page, attempt, nextCursor)
-			m, nextCursor, err = ctx.SlackClient.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: conversation, Cursor: nextCursor})
+			m, nextCursor, err = ctx.SlackClient.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: conversation, Cursor: nextCursor, Limit: 1000})
 			if err != nil {
 				log.Errorf("Failed to get users in conversation '%s': %v", conversation, err)
 				if rlErr, ok := err.(*slack.RateLimitedError); ok {
@@ -204,11 +204,18 @@ func usersInConversation(ctx *IrcContext, conversation string) ([]string, error)
 			}
 			break
 		}
+		log.Debugf("Fetched %d user IDs for channel %s (fetched so far: %d)", len(m), conversation, len(members))
 		members = append(members, m...)
+		// TODO call ctx.Users.FetchByID here in a goroutine to see if this
+		// speeds up
 		if nextCursor == "" {
 			break
 		}
 		page++
+	}
+	log.Debugf("Retrieving user information for %d users", len(members))
+	if err := ctx.Users.FetchByIDs(ctx.SlackClient, false, members...); err != nil {
+		return nil, fmt.Errorf("Failed to fetch users by their IDs: %v", err)
 	}
 	return members, nil
 }
@@ -529,10 +536,7 @@ func connectToSlack(ctx *IrcContext) error {
 	}
 	ctx.User = user
 	ctx.RealName = user.RealName
-	if err := ctx.Users.Fetch(ctx.SlackClient); err != nil {
-		ctx.Conn.Close()
-		return fmt.Errorf("Failed to fetch users: %v", err)
-	}
+	// do not fetch users here, they will be fetched later upon joining channels
 	if err := ctx.Channels.Fetch(ctx.SlackClient); err != nil {
 		ctx.Conn.Close()
 		return fmt.Errorf("Failed to fetch channels: %v", err)
