@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/slack-go/slack"
@@ -31,7 +30,6 @@ type IrcContext struct {
 	SlackConnected    bool
 	ServerName        string
 	Channels          *Channels
-	ChanMutex         *sync.Mutex
 	Users             *Users
 	ChunkSize         int
 	postMessage       chan SlackPostMessage

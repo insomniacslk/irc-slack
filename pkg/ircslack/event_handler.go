@@ -327,6 +327,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			log.Warningf("Disconnected from Slack (intentional: %v, cause: %v)", de.Intentional, de.Cause)
 			ctx.SlackConnected = false
 			ctx.Conn.Close()
+			ctx.Users, ctx.Channels = nil, nil
 			return
 		case *slack.MemberJoinedChannelEvent:
 			// This is the currently preferred way to notify when a user joins a

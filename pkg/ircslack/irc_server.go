@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/coredhcp/coredhcp/logger"
@@ -169,9 +168,7 @@ func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, id, topic string, members [
 	if err := SendIrcNumeric(ctx, 366, fmt.Sprintf("%s %s", ctx.Nick(), name), "End of NAMES list"); err != nil {
 		log.Warningf("Failed to send IRC message: %v", err)
 	}
-	ctx.ChanMutex.Lock()
 	log.Infof("Joined channel %s: %+v", name, ctx.Channels.ByName(name))
-	ctx.ChanMutex.Unlock()
 }
 
 func usersInConversation(ctx *IrcContext, conversation string) ([]string, error) {
@@ -324,8 +321,6 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 	if err := SendIrcNumeric(ctx, 376, ctx.Nick(), ""); err != nil {
 		log.Warningf("Failed to send IRC message: %v", err)
 	}
-
-	ctx.ChanMutex = &sync.Mutex{}
 
 	// get channels
 	if err := joinChannels(ctx); err != nil {
