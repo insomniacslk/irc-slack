@@ -126,7 +126,7 @@ func (s *Server) HandleMsg(conn net.Conn, msg string) {
 				ProxyPrefix:          s.FileProxyPrefix,
 			},
 			Users:    NewUsers(s.Pagination),
-			Channels: NewChannels(),
+			Channels: NewChannels(s.Pagination),
 		}
 		go ctx.Start()
 		UserContexts[conn.RemoteAddr()] = ctx
