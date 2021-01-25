@@ -11,14 +11,16 @@ import (
 
 // Channels wraps the channel list with convenient operations and cache.
 type Channels struct {
-	channels map[string]slack.Channel
-	mu       sync.Mutex
+	channels   map[string]slack.Channel
+	Pagination int
+	mu         sync.Mutex
 }
 
 // NewChannels creates a new Channels object.
-func NewChannels() *Channels {
+func NewChannels(pagination int) *Channels {
 	return &Channels{
-		channels: make(map[string]slack.Channel),
+		channels:   make(map[string]slack.Channel),
+		Pagination: pagination,
 	}
 }
 
@@ -45,7 +47,7 @@ func (c *Channels) Fetch(client *slack.Client) error {
 	)
 	start := time.Now()
 	params := slack.GetConversationsParameters{
-		Limit: 100,
+		Limit: c.Pagination,
 	}
 	for err == nil {
 		chans, nextCursor, err := client.GetConversationsContext(ctx, &params)

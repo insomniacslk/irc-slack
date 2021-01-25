@@ -13,7 +13,7 @@ import (
 )
 
 func TestChannelsNewChannels(t *testing.T) {
-	u := NewChannels()
+	u := NewChannels(100)
 	require.NotNil(t, u)
 	assert.NotNil(t, u.channels)
 }
@@ -51,7 +51,7 @@ func (c fakeSlackHTTPClientChannels) Do(req *http.Request) (*http.Response, erro
 
 func TestChannelsFetch(t *testing.T) {
 	client := slack.New("test-token", slack.OptionHTTPClient(fakeSlackHTTPClientChannels{}))
-	channels := NewChannels()
+	channels := NewChannels(100)
 	err := channels.Fetch(client)
 	require.NoError(t, err)
 	assert.Equal(t, 1, channels.Count())
@@ -59,7 +59,7 @@ func TestChannelsFetch(t *testing.T) {
 
 func TestChannelsById(t *testing.T) {
 	client := slack.New("test-token", slack.OptionHTTPClient(fakeSlackHTTPClientChannels{}))
-	channels := NewChannels()
+	channels := NewChannels(100)
 	err := channels.Fetch(client)
 	require.NoError(t, err)
 	u := channels.ByID("1234")
@@ -70,7 +70,7 @@ func TestChannelsById(t *testing.T) {
 
 func TestChannelsByName(t *testing.T) {
 	client := slack.New("test-token", slack.OptionHTTPClient(fakeSlackHTTPClientChannels{}))
-	channels := NewChannels()
+	channels := NewChannels(100)
 	err := channels.Fetch(client)
 	require.NoError(t, err)
 	u := channels.ByName("general")
