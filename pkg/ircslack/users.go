@@ -2,6 +2,7 @@ package ircslack
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -23,15 +24,21 @@ func NewUsers(pagination int) *Users {
 	}
 }
 
-// FetchByIDs fetches the users from the specified IDs and updates the internal
+// FetchByIDs fetches the users with the specified IDs and updates the internal
 // user mapping.
-func (u *Users) FetchByIDs(client *slack.Client, skipCache bool, userIDs ...string) error {
-	var toRetrieve []string
+func (u *Users) FetchByIDs(client *slack.Client, skipCache bool, userIDs ...string) ([]slack.User, error) {
+	var (
+		toRetrieve       []string
+		alreadyRetrieved []slack.User
+	)
+
 	if !skipCache {
 		u.mu.Lock()
 		for _, uid := range userIDs {
-			if _, ok := u.users[uid]; !ok {
+			if u, ok := u.users[uid]; !ok {
 				toRetrieve = append(toRetrieve, uid)
+			} else {
+				alreadyRetrieved = append(alreadyRetrieved, u)
 			}
 		}
 		u.mu.Unlock()
@@ -40,28 +47,52 @@ func (u *Users) FetchByIDs(client *slack.Client, skipCache bool, userIDs ...stri
 		toRetrieve = userIDs
 	}
 	chunkSize := 1000
+	allFetchedUsers := make([]slack.User, 0, len(userIDs))
 	for i := 0; i < len(toRetrieve); i += chunkSize {
 		upperLimit := i + chunkSize
 		if upperLimit > len(toRetrieve) {
 			upperLimit = len(toRetrieve)
 		}
-		slackUsers, err := client.GetUsersInfo(toRetrieve[i:upperLimit]...)
-		if err != nil {
-			return err
+		for {
+			attempt := 0
+			if attempt >= MaxSlackAPIAttempts {
+				return nil, fmt.Errorf("Users.FetchByIDs: exceeded the maximum number of attempts (%d) with the Slack API", MaxSlackAPIAttempts)
+			}
+			log.Debugf("Fetching %d users of %d, attempt %d of %d", len(toRetrieve), len(userIDs), attempt+1, MaxSlackAPIAttempts)
+			slackUsers, err := client.GetUsersInfo(toRetrieve[i:upperLimit]...)
+			if err != nil {
+				if rlErr, ok := err.(*slack.RateLimitedError); ok {
+					// we were rate-limited. Let's wait the recommended delay
+					log.Warningf("Hit Slack API rate limiter. Waiting %v", rlErr.RetryAfter)
+					time.Sleep(rlErr.RetryAfter)
+					attempt++
+					continue
+				}
+				return nil, err
+			}
+			if len(*slackUsers) != len(toRetrieve[i:upperLimit]) {
+				log.Warningf("Tried to fetch %d users but only got %d", len(toRetrieve[i:upperLimit]), len(*slackUsers))
+			}
+			allFetchedUsers = append(allFetchedUsers, *slackUsers...)
+			// also update the local users map
+			u.mu.Lock()
+			for _, user := range *slackUsers {
+				u.users[user.ID] = user
+			}
+			u.mu.Unlock()
+			break
 		}
-		// also update the local users map
-		u.mu.Lock()
-		for _, user := range *slackUsers {
-			u.users[user.ID] = user
-		}
-		u.mu.Unlock()
 	}
-	return nil
+	allUsers := append(alreadyRetrieved, allFetchedUsers...)
+	if len(userIDs) != len(allUsers) {
+		return allFetchedUsers, fmt.Errorf("Found %d users but %d were requested", len(allUsers), len(userIDs))
+	}
+	return allUsers, nil
 }
 
 // Fetch retrieves all the users on a given Slack team. The Slack client has to
 // be valid and connected.
-func (u *Users) Fetch(client *slack.Client) error {
+func (u *Users) Fetch(client *slack.Client) ([]slack.User, error) {
 	log.Infof("Fetching all users, might take a while on large Slack teams")
 	var opts []slack.GetUsersOption
 	if u.pagination > 0 {
@@ -75,6 +106,7 @@ func (u *Users) Fetch(client *slack.Client) error {
 		users = make(map[string]slack.User)
 	)
 	start := time.Now()
+	var allFetchedUsers []slack.User
 	for err == nil {
 		up, err = up.Next(ctx)
 		if err == nil {
@@ -82,6 +114,7 @@ func (u *Users) Fetch(client *slack.Client) error {
 			for _, u := range up.Users {
 				users[u.ID] = u
 			}
+			allFetchedUsers = append(allFetchedUsers, up.Users...)
 		} else if rateLimitedError, ok := err.(*slack.RateLimitedError); ok {
 			select {
 			case <-ctx.Done():
@@ -99,7 +132,7 @@ func (u *Users) Fetch(client *slack.Client) error {
 	u.mu.Lock()
 	u.users = users
 	u.mu.Unlock()
-	return nil
+	return allFetchedUsers, nil
 }
 
 // Count returns the number of users. This method must be called after `Fetch`.

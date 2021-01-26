@@ -58,15 +58,16 @@ func (c fakeSlackHTTPClient) Do(req *http.Request) (*http.Response, error) {
 func TestUsersFetch(t *testing.T) {
 	client := slack.New("test-token", slack.OptionHTTPClient(fakeSlackHTTPClient{}))
 	users := NewUsers(10)
-	err := users.Fetch(client)
+	fetched, err := users.Fetch(client)
 	require.NoError(t, err)
 	assert.Equal(t, 1, users.Count())
+	assert.Equal(t, 1, len(fetched))
 }
 
 func TestUsersById(t *testing.T) {
 	client := slack.New("test-token", slack.OptionHTTPClient(fakeSlackHTTPClient{}))
 	users := NewUsers(10)
-	err := users.Fetch(client)
+	_, err := users.Fetch(client)
 	require.NoError(t, err)
 	u := users.ByID("UABCD")
 	require.NotNil(t, u)
@@ -77,7 +78,7 @@ func TestUsersById(t *testing.T) {
 func TestUsersByName(t *testing.T) {
 	client := slack.New("test-token", slack.OptionHTTPClient(fakeSlackHTTPClient{}))
 	users := NewUsers(10)
-	err := users.Fetch(client)
+	_, err := users.Fetch(client)
 	require.NoError(t, err)
 	u := users.ByName("insomniac")
 	require.NotNil(t, u)
@@ -88,7 +89,7 @@ func TestUsersByName(t *testing.T) {
 func TestUsersIDsToNames(t *testing.T) {
 	client := slack.New("test-token", slack.OptionHTTPClient(fakeSlackHTTPClient{}))
 	users := NewUsers(10)
-	err := users.Fetch(client)
+	_, err := users.Fetch(client)
 	require.NoError(t, err)
 	names := users.IDsToNames("UABCD")
 	assert.Equal(t, []string{"insomniac"}, names)
