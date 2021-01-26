@@ -27,6 +27,15 @@ Then configure your IRC client to connect to localhost:6666 and use one of the m
 
 You can also [run it with Docker](#run-it-with-docker).
 
+## Feature matrix
+
+|     | public channel | private channel | multiparty IM | IM |
+| --- | --- | --- | --- | --- |
+| from me | works | works | doesn't work ([#168](https://github.com/insomniacslk/irc-slack/issues/168)) | works |
+| to me | works | works | works | works |
+| thread from me | doesn't work ([#168](https://github.com/insomniacslk/irc-slack/issues/168)) | doesn't work ([#168](https://github.com/insomniacslk/irc-slack/issues/168)) | untested | doesn't work ([#166](https://github.com/insomniacslk/irc-slack/issues/166)) |
+| thread to me | works | works | untested | works but sends in the IM chat ([#167](https://github.com/insomniacslk/irc-slack/issues/167)) |
+
 ## Encryption
 
 `irc-slack` by default does not use encryption when communicating with your IRC

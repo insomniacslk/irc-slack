@@ -151,131 +151,65 @@ func SendIrcNumeric(ctx *IrcContext, code int, args, desc string) error {
 
 // IrcSendChanInfoAfterJoin sends channel information to the user about a joined
 // channel.
-func IrcSendChanInfoAfterJoin(ctx *IrcContext, name, id, topic string, members []string, isGroup bool) {
+func IrcSendChanInfoAfterJoin(ctx *IrcContext, ch *Channel, members []slack.User) {
+	IrcSendChanInfoAfterJoinCustom(ctx, ch.IRCName(), ch.ID, ch.Purpose.Value, members)
+}
+
+// IrcSendChanInfoAfterJoinCustom sends channel information to the user about a joined
+// channel. It can be used as an alternative to IrcSendChanInfoAfterJoin when
+// you need to specify custom chan name, id, and topic.
+func IrcSendChanInfoAfterJoinCustom(ctx *IrcContext, chanName, chanID, topic string, members []slack.User) {
+	memberNames := make([]string, 0, len(members))
+	for _, m := range members {
+		memberNames = append(memberNames, m.Name)
+	}
 	// TODO wrap all these Conn.Write into a function
-	if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%v JOIN %v\r\n", ctx.Mask(), name))); err != nil {
-		log.Warningf("Failed to send IRC message: %v", err)
+	if _, err := ctx.Conn.Write([]byte(fmt.Sprintf(":%s JOIN %s\r\n", ctx.Mask(), chanName))); err != nil {
+		log.Warningf("Failed to send IRC JOIN message: %v", err)
 	}
 	// RPL_TOPIC
-	if err := SendIrcNumeric(ctx, 332, fmt.Sprintf("%s %s", ctx.Nick(), name), topic); err != nil {
-		log.Warningf("Failed to send IRC message: %v", err)
+	if err := SendIrcNumeric(ctx, 332, fmt.Sprintf("%s %s", ctx.Nick(), chanName), topic); err != nil {
+		log.Warningf("Failed to send IRC TOPIC message: %v", err)
 	}
 	// RPL_NAMREPLY
-	if err := SendIrcNumeric(ctx, 353, fmt.Sprintf("%s = %s", ctx.Nick(), name), strings.Join(ctx.Users.IDsToNames(members...), " ")); err != nil {
-		log.Warningf("Failed to send IRC message: %v", err)
+	if len(members) > 0 {
+		if err := SendIrcNumeric(ctx, 353, fmt.Sprintf("%s = %s", ctx.Nick(), chanName), strings.Join(memberNames, " ")); err != nil {
+			log.Warningf("Failed to send IRC NAMREPLY message: %v", err)
+		}
 	}
 	// RPL_ENDOFNAMES
-	if err := SendIrcNumeric(ctx, 366, fmt.Sprintf("%s %s", ctx.Nick(), name), "End of NAMES list"); err != nil {
-		log.Warningf("Failed to send IRC message: %v", err)
+	if err := SendIrcNumeric(ctx, 366, fmt.Sprintf("%s %s", ctx.Nick(), chanName), "End of NAMES list"); err != nil {
+		log.Warningf("Failed to send IRC ENDOFNAMES message: %v", err)
 	}
-	log.Infof("Joined channel %s: %+v", name, ctx.Channels.ByName(name))
+	log.Infof("Joined channel %s", chanName)
 }
 
-func usersInConversation(ctx *IrcContext, conversation string) ([]string, error) {
-	var (
-		members, m []string
-		nextCursor string
-		err        error
-		page       int
-	)
-	for {
-		attempt := 0
-		for {
-			// retry if rate-limited, no more than MaxSlackAPIAttempts times
-			if attempt >= MaxSlackAPIAttempts {
-				return nil, fmt.Errorf("GetUsersInConversation: exceeded the maximum number of attempts (%d) with the Slack API", MaxSlackAPIAttempts)
-			}
-			log.Debugf("GetUsersInConversation: page %d attempt #%d nextCursor=%s", page, attempt, nextCursor)
-			m, nextCursor, err = ctx.SlackClient.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: conversation, Cursor: nextCursor, Limit: 1000})
-			if err != nil {
-				log.Errorf("Failed to get users in conversation '%s': %v", conversation, err)
-				if rlErr, ok := err.(*slack.RateLimitedError); ok {
-					// we were rate-limited. Let's wait as much as Slack
-					// instructs us to do
-					log.Warningf("Hit Slack API rate limiter. Waiting %v", rlErr.RetryAfter)
-					time.Sleep(rlErr.RetryAfter)
-					attempt++
-					continue
-				}
-				return nil, fmt.Errorf("Cannot get member list for conversation %s: %v", conversation, err)
-			}
-			break
-		}
-		log.Debugf("Fetched %d user IDs for channel %s (fetched so far: %d)", len(m), conversation, len(members))
-		members = append(members, m...)
-		// TODO call ctx.Users.FetchByID here in a goroutine to see if this
-		// speeds up
-		if nextCursor == "" {
-			break
-		}
-		page++
-	}
-	log.Debugf("Retrieving user information for %d users", len(members))
-	if err := ctx.Users.FetchByIDs(ctx.SlackClient, false, members...); err != nil {
-		return nil, fmt.Errorf("Failed to fetch users by their IDs: %v", err)
-	}
-	return members, nil
-}
-
-// join will join the channel with the given ID, name and topic, and send back a
+// joinChannel will join the channel with the given ID, name and topic, and send back a
 // response to the IRC client
-func join(ctx *IrcContext, id, name, topic string) error {
-	members, err := usersInConversation(ctx, id)
-	if err != nil {
-		return err
-	}
-	info := fmt.Sprintf("#%s topic=%s members=%d", name, topic, len(members))
-	log.Infof(info)
+func joinChannel(ctx *IrcContext, ch *Channel) error {
+	log.Infof(fmt.Sprintf("%s topic=%s members=%d", ch.IRCName(), ch.Purpose.Value, ch.NumMembers))
 	// the channels are already joined, notify the IRC client of their
 	// existence
-	go IrcSendChanInfoAfterJoin(ctx, name, id, topic, members, false)
+	members, err := ChannelMembers(ctx, ch.ID)
+	if err != nil {
+		jErr := fmt.Errorf("Failed to fetch users in channel `%s (channel ID: %s): %v", ch.Name, ch.ID, err)
+		ctx.SendUnknownError(jErr.Error())
+		return jErr
+	}
+	go IrcSendChanInfoAfterJoin(ctx, ch, members)
 	return nil
 }
 
 // joinChannels gets all the available Slack channels and sends an IRC JOIN message
 // for each of the joined channels on Slack
 func joinChannels(ctx *IrcContext) error {
-	log.Info("Channel list:")
-	var (
-		channels, chans []slack.Channel
-		nextCursor      string
-		err             error
-	)
-	for {
-		attempt := 0
-		for {
-			// retry if rate-limited, no more than MaxSlackAPIAttempts times
-			if attempt >= MaxSlackAPIAttempts {
-				return fmt.Errorf("GetConversations: exceeded the maximum number of attempts (%d) with the Slack API", MaxSlackAPIAttempts)
-			}
-			log.Infof("GetConversations: attempt #%d, nextCursor=%s", attempt, nextCursor)
-			params := slack.GetConversationsParameters{
-				Types:  []string{"public_channel", "private_channel"},
-				Cursor: nextCursor,
-			}
-			chans, nextCursor, err = ctx.SlackClient.GetConversations(&params)
-			if err != nil {
-				log.Warningf("Failed to get conversations: %v", err)
-				if rlErr, ok := err.(*slack.RateLimitedError); ok {
-					// we were rate-limited. Let's wait as much as Slack
-					// instructs us to do
-					log.Warningf("Hit Slack API rate limiter. Waiting %v", rlErr.RetryAfter)
-					time.Sleep(rlErr.RetryAfter)
-					attempt++
-					continue
-				}
-				return fmt.Errorf("Cannot get slack channels: %v", err)
-			}
-			break
+	for _, sch := range ctx.Channels.AsMap() {
+		ch := Channel(sch)
+		if !ch.IsPublicChannel() && !ch.IsPrivateChannel() {
+			continue
 		}
-		channels = append(channels, chans...)
-		if nextCursor == "" {
-			break
-		}
-	}
-	for _, ch := range channels {
 		if ch.IsMember {
-			if err := join(ctx, ch.ID, "#"+ch.Name, ch.Purpose.Value); err != nil {
+			if err := joinChannel(ctx, &ch); err != nil {
 				return err
 			}
 		}
@@ -307,7 +241,7 @@ func IrcAfterLoggingIn(ctx *IrcContext, rtm *slack.RTM) error {
 		}
 	}
 	// RPL_ISUPPORT
-	if err := SendIrcNumeric(ctx, 005, ctx.Nick(), "CHANTYPES=#+&"); err != nil {
+	if err := SendIrcNumeric(ctx, 005, ctx.Nick(), "CHANTYPES="+strings.Join(SupportedChannelPrefixes(), "")); err != nil {
 		log.Warningf("Failed to send IRC message: %v", err)
 	}
 	motd(fmt.Sprintf("This is an IRC-to-Slack gateway, written by %s <%s>.", ProjectAuthor, ProjectAuthorEmail))
@@ -373,14 +307,16 @@ func getTargetTs(channelName string) string {
 
 // IrcPrivMsgHandler is called when a PRIVMSG command is sent
 func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
-	channelParameter := ""
-	text := ""
-	if len(args) == 1 {
+	var channelParameter, text string
+	switch len(args) {
+	case 1:
 		channelParameter = args[0]
 		text = trailing
-	} else if len(args) == 2 {
+	case 2:
 		channelParameter = args[0]
 		text = args[1]
+	default:
+		log.Warningf("Invalid number of parameters for PRIVMSG, want 1 or 2, got %d", len(args))
 	}
 	if channelParameter == "" || text == "" {
 		log.Warningf("Invalid PRIVMSG command args: %v %v", args, trailing)
@@ -389,8 +325,10 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 	channel := ctx.Channels.ByName(channelParameter)
 	target := ""
 	if channel != nil {
-		target = channel.ID
+		// known channel
+		target = channel.SlackName()
 	} else {
+		// assume private message
 		target = "@" + channelParameter
 	}
 
@@ -406,7 +344,7 @@ func IrcPrivMsgHandler(ctx *IrcContext, prefix, cmd string, args []string, trail
 			log.Warningf("Unknown channel ID for %s", key)
 			return
 		}
-		target = ch.ID
+		target = ch.SlackName()
 
 		// this is a MeMessage
 		// strip off the ACTION and \x01 wrapper
@@ -654,10 +592,7 @@ func IrcPassHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 // IrcWhoHandler is called when a WHO command is sent
 func IrcWhoHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	sendErr := func() {
-		// ERR_UNKNOWNERROR
-		if err := SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid WHO command. Syntax: WHO <nickname|channel>"); err != nil {
-			log.Warningf("Failed to send IRC message: %v", err)
-		}
+		ctx.SendUnknownError("Invalid WHO command. Syntax: WHO <nickname|channel>")
 	}
 	if len(args) != 1 && len(args) != 2 {
 		sendErr()
@@ -665,7 +600,7 @@ func IrcWhoHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing 
 	}
 	target := args[0]
 	var rargs, desc string
-	if strings.HasPrefix(target, "#") {
+	if HasChannelPrefix(target) {
 		ch := ctx.Channels.ByName(target)
 		if ch == nil {
 			// ERR_NOSUCHCHANNEL
@@ -676,7 +611,7 @@ func IrcWhoHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing 
 		}
 		for _, un := range ch.Members {
 			// FIXME can we use the cached users?
-			u := ctx.GetUserInfo(un)
+			u := ctx.Users.ByID(un)
 			if u == nil {
 				log.Warningf("Failed to get info for user name '%s'", un)
 				continue
@@ -720,10 +655,7 @@ func IrcWhoHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing 
 // IrcWhoisHandler is called when a WHOIS command is sent
 func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 && len(args) != 2 {
-		// ERR_UNKNOWNERROR
-		if err := SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid WHOIS command. Syntax: WHOIS <username>"); err != nil {
-			log.Warningf("Failed to send IRC message: %v", err)
-		}
+		ctx.SendUnknownError("Invalid WHOIS command. Syntax: WHOIS <username>")
 		return
 	}
 	username := args[0]
@@ -789,10 +721,7 @@ func IrcWhoisHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 // IrcJoinHandler is called when a JOIN command is sent
 func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
-		// ERR_UNKNOWNERROR
-		if err := SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid JOIN command"); err != nil {
-			log.Warningf("Failed to send IRC message: %v", err)
-		}
+		ctx.SendUnknownError("Invalid JOIN command")
 		return
 	}
 	// Because it is possible for an IRC Client to join multiple channels
@@ -801,39 +730,38 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	// separately.
 	channames := strings.Split(args[0], ",")
 	for _, channame := range channames {
-		if strings.HasPrefix(channame, "&") || strings.HasPrefix(channame, "+") {
+		if strings.HasPrefix(channame, ChannelPrefixMpIM) || strings.HasPrefix(channame, ChannelPrefixThread) {
+			log.Debugf("JOIN: ignoring channel `%s`, cannot join multi-party IMs or threads", channame)
 			continue
 		}
-		ch, err := ctx.SlackClient.JoinChannel(channame)
+		sch, err := ctx.SlackClient.JoinChannel(channame)
 		if err != nil {
 			log.Warningf("Cannot join channel %s: %v", channame, err)
 			continue
 		}
 		log.Infof("Joined channel %s", channame)
-		go IrcSendChanInfoAfterJoin(ctx, channame, ch.ID, ch.Purpose.Value, ch.Members, true)
+		ch := Channel(*sch)
+		if err := joinChannel(ctx, &ch); err != nil {
+			log.Warningf("Failed to join channel `%s`: %v", ch.Name, err)
+			continue
+		}
 	}
 }
 
 // IrcPartHandler is called when a PART command is sent
 func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
 	if len(args) != 1 {
-		// ERR_UNKNOWNERROR
-		if err := SendIrcNumeric(ctx, 400, ctx.Nick(), "Invalid PART command"); err != nil {
-			log.Warningf("Failed to send IRC message: %v", err)
-		}
+		ctx.SendUnknownError("Invalid PART command")
 		return
 	}
-	channame := strings.TrimPrefix(args[0], "#")
+	channame := StripChannelPrefix(args[0])
 	// Slack needs the channel ID to leave it, not the channel name. The only
 	// way to get the channel ID from the name is retrieving the whole channel
 	// list and finding the one whose name is the one we want to leave
 	chanlist, err := ctx.SlackClient.GetChannels(true)
 	if err != nil {
 		log.Warningf("Cannot leave channel %s: %v", channame, err)
-		// ERR_UNKNOWNERROR
-		if err := SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("Cannot leave channel: %v", err)); err != nil {
-			log.Warningf("Failed to send IRC message: %v", err)
-		}
+		ctx.SendUnknownError("Cannot leave channel: %v", err)
 		return
 	}
 	var chanID string
@@ -887,10 +815,7 @@ func IrcTopicHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 	}
 	newTopic, err := ctx.SlackClient.SetPurposeOfConversation(channel.ID, topic)
 	if err != nil {
-		// ERR_UNKNOWNERROR
-		if err := SendIrcNumeric(ctx, 400, ctx.Nick(), fmt.Sprintf("%s :Cannot set topic: %v", channame, err)); err != nil {
-			log.Warningf("Failed to send IRC message: %v", err)
-		}
+		ctx.SendUnknownError("%s :Cannot set topic: %v", channame, err)
 		return
 	}
 	// RPL_TOPIC

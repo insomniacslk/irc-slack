@@ -168,3 +168,13 @@ func (ic IrcContext) GetConversationInfo(conversation string) (*slack.Channel, e
 var (
 	UserContexts = map[net.Addr]*IrcContext{}
 )
+
+// SendUnknownError sends an IRC 400 (ERR_UNKNOWNERROR) message to the client
+// and prints a warning about it.
+func (ic *IrcContext) SendUnknownError(fmtstr string, args ...interface{}) {
+	msg := fmt.Sprintf(fmtstr, args...)
+	log.Warningf("Sending ERR_UNKNOWNERROR (400) to client with message: %s", msg)
+	if err := SendIrcNumeric(ic, 400, ic.Nick(), msg); err != nil {
+		log.Warningf("Failed to send ERR_UNKNOWNERROR (400) to client: %v", err)
+	}
+}
