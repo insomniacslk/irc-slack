@@ -21,6 +21,7 @@ import (
 var (
 	flagDebug          = pflag.BoolP("debug", "d", false, "Enable debug log")
 	flagShowBrowser    = pflag.BoolP("show-browser", "b", false, "show browser, useful for debugging")
+	flagChromePath     = pflag.StringP("chrome-path", "c", "", "Custom path for chrome browser")
 	flagMFA            = pflag.StringP("mfa", "m", "", "Provide a multi-factor authentication token (necessary if MFA is enabled on your account)")
 	flagWaitGDPRNotice = pflag.BoolP("gdpr", "g", false, "Wait for Slack's GDPR notice pop-up before inserting username and password. Use this to work around login failures")
 	flagTimeout        = pflag.UintP("timeout", "t", 30, "Timeout in seconds")
@@ -56,7 +57,7 @@ func main() {
 	}
 
 	timeout := time.Duration(*flagTimeout) * time.Second
-	token, cookie, err := fetchCredentials(context.TODO(), team, email, password, *flagMFA, *flagWaitGDPRNotice, timeout, *flagShowBrowser, *flagDebug)
+	token, cookie, err := fetchCredentials(context.TODO(), team, email, password, *flagMFA, *flagWaitGDPRNotice, timeout, *flagShowBrowser, *flagDebug, *flagChromePath)
 	if err != nil {
 		log.Fatalf("Failed to fetch credentials for team `%s`: %v", team, err)
 	}
@@ -65,7 +66,7 @@ func main() {
 }
 
 // fetchCredentials fetches Slack token and cookie for a given team.
-func fetchCredentials(ctx context.Context, team, email, password, mfa string, waitGDPRNotice bool, timeout time.Duration, showBrowser, doDebug bool) (string, string, error) {
+func fetchCredentials(ctx context.Context, team, email, password, mfa string, waitGDPRNotice bool, timeout time.Duration, showBrowser, doDebug bool, chromePath string) (string, string, error) {
 	if !strings.HasSuffix(team, ".slack.com") {
 		team += ".slack.com"
 	}
@@ -76,10 +77,15 @@ func fetchCredentials(ctx context.Context, team, email, password, mfa string, wa
 	defer cancel()
 
 	// show browser
+	var allocatorOpts []chromedp.ExecAllocatorOption
 	if showBrowser {
-		ctx, cancel = chromedp.NewExecAllocator(ctx, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
-		defer cancel()
+		allocatorOpts = append(allocatorOpts, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
 	}
+	if chromePath != "" {
+		allocatorOpts = append(allocatorOpts, chromedp.ExecPath(chromePath))
+	}
+	ctx, cancel = chromedp.NewExecAllocator(ctx, allocatorOpts...)
+	defer cancel()
 
 	var opts []chromedp.ContextOption
 	if doDebug {
