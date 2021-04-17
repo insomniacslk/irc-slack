@@ -1,8 +1,8 @@
 module github.com/insomniacslk/irc-slack
 
 require (
-	github.com/chromedp/cdproto v0.0.0-20210313213058-f5c5a7a06834
-	github.com/chromedp/chromedp v0.6.8
+	github.com/chromedp/cdproto v0.0.0-20210323015217-0942afbea50e
+	github.com/chromedp/chromedp v0.6.10
 	github.com/coredhcp/coredhcp v0.0.0-20210316185101-4f97fe7ae569
 	github.com/coredhcp/plugins v0.0.0-20191121175107-a201c0b24a48 // indirect
 	github.com/golangci/golangci-lint v1.21.0 // indirect
@@ -18,8 +18,8 @@ require (
 	github.com/spf13/pflag v1.0.6-0.20201009195203-85dd5c8bc61c
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20210314154223-e6e6c4f2bb5b
-	golang.org/x/sys v0.0.0-20210316164454-77fc1eacc6aa // indirect
-	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+	golang.org/x/sys v0.0.0-20210414055047-fe65e336abe0 // indirect
+	golang.org/x/term v0.0.0-20210406210042-72f3dc4e9b72
 )
 
 go 1.14

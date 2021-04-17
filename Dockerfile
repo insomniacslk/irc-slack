@@ -1,7 +1,7 @@
 ############################
 # STEP 1 build executable binary
 ############################
-FROM golang:1.12-alpine AS builder
+FROM golang:1.16-alpine AS builder
 
 LABEL BUILD="docker build -t insomniacslk/irc-slack -f Dockerfile ."
 LABEL RUN="docker run --rm -p 6666:6666 -it insomniacslk/irc-slack"
@@ -9,9 +9,9 @@ LABEL RUN="docker run --rm -p 6666:6666 -it insomniacslk/irc-slack"
 # Install git.
 # Git is required for fetching the dependencies.
 RUN apk update && apk add --no-cache git bash
-COPY . $GOPATH/src/insomniacslk/irc-slack
+COPY . $GOPATH/src/github.com/insomniacslk/irc-slack
 ENV GO111MODULE=on
-WORKDIR $GOPATH/src/insomniacslk/irc-slack/cmd/irc-slack
+WORKDIR $GOPATH/src/github.com/insomniacslk/irc-slack/cmd/irc-slack
 # Build the binary.
 RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /go/bin/irc-slack
 

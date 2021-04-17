@@ -1,0 +1,20 @@
+############################
+# STEP 1 build executable binary
+############################
+FROM golang:1.16-alpine AS builder
+
+LABEL BUILD="docker build -t insomniacslk/irc-slack/tools-autotoken -f Dockerfile.autotoken ."
+LABEL RUN="docker run --rm -it insomniacslk/irc-slack/tools-autotoken"
+
+# Install git.
+# Git is required for fetching the dependencies.
+RUN apk update && apk add --no-cache --purge git bash chromium
+COPY . $GOPATH/src/github.com/insomniacslk/irc-slack/
+ENV GO111MODULE=on
+WORKDIR $GOPATH/src/github.com/insomniacslk/irc-slack/tools/autotoken
+# Build the binary.
+RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /go/bin/autotoken
+ENV PATH="/go/bin:$PATH"
+WORKDIR /tmp
+# Run the autotoken binary.
+CMD ["/go/bin/autotoken", "-h"]
