@@ -19,7 +19,7 @@ Please keep reporting bugs and sending PRs!
 
 ```
 cd cmd/irc-slack
-make
+make # use `make` instead of `go build` to include build information when running with `-v`
 ./irc-slack # by default on port 6666
 ```
 
