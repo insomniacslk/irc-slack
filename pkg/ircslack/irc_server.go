@@ -41,6 +41,7 @@ var IrcCommandHandlers = map[string]IrcCommandHandler{
 	"JOIN":    IrcJoinHandler,
 	"PART":    IrcPartHandler,
 	"TOPIC":   IrcTopicHandler,
+	"NAMES":   IrcNamesHandler,
 }
 
 // IrcNumericsSafeToChunk is a list of IRC numeric replies that are safe
@@ -821,5 +822,43 @@ func IrcTopicHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 	// RPL_TOPIC
 	if err := SendIrcNumeric(ctx, 332, fmt.Sprintf("%s :%s", ctx.Nick(), channame), newTopic.Purpose.Value); err != nil {
 		log.Warningf("Failed to send IRC message: %v", err)
+	}
+}
+
+// IrcNamesHandler is called when a NAMES command is sent
+func IrcNamesHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
+	if len(args) < 1 {
+		// ERR_NEEDMOREPARAMS
+		if err := SendIrcNumeric(ctx, 461, ctx.Nick(), "NAMES :Not enough parameters"); err != nil {
+			log.Warningf("Failed to send IRC message: %v", err)
+		}
+		return
+	}
+	ch := ctx.Channels.ByName(args[0])
+	if ch == nil {
+		ctx.SendUnknownError("Channel `%s` not found", args[0])
+		return
+	}
+
+	members, err := ChannelMembers(ctx, ch.ID)
+	if err != nil {
+		jErr := fmt.Errorf("Failed to fetch users in channel `%s (channel ID: %s): %v", ch.Name, ch.ID, err)
+		ctx.SendUnknownError(jErr.Error())
+		return
+	}
+	memberNames := make([]string, 0, len(members))
+	for _, m := range members {
+		memberNames = append(memberNames, m.Name)
+	}
+	log.Printf("Found %d members in %s: %v", len(memberNames), ch.IRCName(), memberNames)
+	// RPL_NAMREPLY
+	if len(members) > 0 {
+		if err := SendIrcNumeric(ctx, 353, fmt.Sprintf("%s = %s", ctx.Nick(), ch.IRCName()), strings.Join(memberNames, " ")); err != nil {
+			log.Warningf("Failed to send IRC NAMREPLY message: %v", err)
+		}
+	}
+	// RPL_ENDOFNAMES
+	if err := SendIrcNumeric(ctx, 366, fmt.Sprintf("%s %s", ctx.Nick(), ch.IRCName()), "End of NAMES list"); err != nil {
+		log.Warningf("Failed to send IRC ENDOFNAMES message: %v", err)
 	}
 }
