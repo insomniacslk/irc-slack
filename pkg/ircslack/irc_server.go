@@ -735,7 +735,7 @@ func IrcJoinHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 			log.Debugf("JOIN: ignoring channel `%s`, cannot join multi-party IMs or threads", channame)
 			continue
 		}
-		sch, err := ctx.SlackClient.JoinChannel(channame)
+		sch, _, _, err := ctx.SlackClient.JoinConversation(channame)
 		if err != nil {
 			log.Warningf("Cannot join channel %s: %v", channame, err)
 			continue
@@ -759,14 +759,13 @@ func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 	// Slack needs the channel ID to leave it, not the channel name. The only
 	// way to get the channel ID from the name is retrieving the whole channel
 	// list and finding the one whose name is the one we want to leave
-	chanlist, err := ctx.SlackClient.GetChannels(true)
-	if err != nil {
+	if err := ctx.Channels.Fetch(ctx.SlackClient); err != nil {
 		log.Warningf("Cannot leave channel %s: %v", channame, err)
 		ctx.SendUnknownError("Cannot leave channel: %v", err)
 		return
 	}
 	var chanID string
-	for _, ch := range chanlist {
+	for _, ch := range ctx.Channels.AsMap() {
 		if ch.Name == channame {
 			chanID = ch.ID
 			log.Debugf("Trying to leave channel: %+v", ch)
@@ -779,7 +778,7 @@ func IrcPartHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 			log.Warningf("Failed to send IRC message: %v", err)
 			return
 		}
-		notInChan, err := ctx.SlackClient.LeaveChannel(chanID)
+		notInChan, err := ctx.SlackClient.LeaveConversation(chanID)
 		if err != nil {
 			log.Warningf("Cannot leave channel %s (id: %s): %v", channame, chanID, err)
 			return

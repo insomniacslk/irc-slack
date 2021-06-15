@@ -1,9 +1,9 @@
 module github.com/insomniacslk/irc-slack
 
 require (
-	github.com/chromedp/cdproto v0.0.0-20210313213058-f5c5a7a06834
-	github.com/chromedp/chromedp v0.6.8
-	github.com/coredhcp/coredhcp v0.0.0-20210316185101-4f97fe7ae569
+	github.com/chromedp/cdproto v0.0.0-20210610012203-ae0add727b87
+	github.com/chromedp/chromedp v0.7.3
+	github.com/coredhcp/coredhcp v0.0.0-20210426135022-eface94a0dd7
 	github.com/coredhcp/plugins v0.0.0-20191121175107-a201c0b24a48 // indirect
 	github.com/golangci/golangci-lint v1.21.0 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
@@ -12,14 +12,15 @@ require (
 	github.com/lusis/go-slackbot v0.0.0-20180109053408-401027ccfef5 // indirect
 	github.com/lusis/slack-test v0.0.0-20190426140909-c40012f20018 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
+	github.com/mattn/go-isatty v0.0.13 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.8.1
-	github.com/slack-go/slack v0.8.2-0.20210316191501-5822d67c4ed2
+	github.com/slack-go/slack v0.9.1
 	github.com/spf13/pflag v1.0.6-0.20201009195203-85dd5c8bc61c
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/crypto v0.0.0-20210314154223-e6e6c4f2bb5b
-	golang.org/x/sys v0.0.0-20210316164454-77fc1eacc6aa // indirect
-	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
+	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
+	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
 )
 
 go 1.14
