@@ -46,7 +46,7 @@ func (u *Users) FetchByIDs(client *slack.Client, skipCache bool, userIDs ...stri
 	} else {
 		toRetrieve = userIDs
 	}
-	chunkSize := 1000
+	chunkSize := 30
 	allFetchedUsers := make([]slack.User, 0, len(userIDs))
 	for i := 0; i < len(toRetrieve); i += chunkSize {
 		upperLimit := i + chunkSize
