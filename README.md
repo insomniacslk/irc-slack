@@ -109,9 +109,9 @@ and use the above as your IRC password.
 See [autotoken](tools/autotoken). Just build it with `go build` and run with
 `./autotoken -h` to see the usage help.
 
-If you prefer to run `autotoken` via Docker, run:
+If you prefer to run `autotoken` via Docker, you can test your luck with:
 ```
-docker pull insomniacslk/irc-slack/tools-autotoken
+docker build -t insomniacslk/irc-slack/tools-autotoken -f Dockerfile.autotoken .
 docker run --rm -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix insomniacslk/irc-slack/tools-autotoken autotoken -h
 ```
 
