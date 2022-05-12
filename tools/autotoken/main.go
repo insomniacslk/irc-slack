@@ -80,6 +80,8 @@ func fetchCredentials(ctx context.Context, team, email, password, mfa string, wa
 	var allocatorOpts []chromedp.ExecAllocatorOption
 	if showBrowser {
 		allocatorOpts = append(allocatorOpts, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
+	} else {
+		allocatorOpts = append(allocatorOpts, chromedp.Headless)
 	}
 	if chromePath != "" {
 		allocatorOpts = append(allocatorOpts, chromedp.ExecPath(chromePath))
