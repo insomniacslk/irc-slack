@@ -30,7 +30,7 @@ var (
 func main() {
 	usage := func() {
 		fmt.Fprintf(os.Stderr, "autotoken: log into slack team and get token and cookie.\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [-d] [-mfa <token>] [-gdpr] teamname[.slack.com] email [password]\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [-d|--debug] [-m|--mfa <token>] [-g|--gdpr] teamname[.slack.com] email [password]\n\n", os.Args[0])
 		pflag.PrintDefaults()
 		os.Exit(1)
 	}
