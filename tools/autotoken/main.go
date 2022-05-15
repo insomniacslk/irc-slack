@@ -30,7 +30,7 @@ var (
 func main() {
 	usage := func() {
 		fmt.Fprintf(os.Stderr, "autotoken: log into slack team and get token and cookie.\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [-d] [-mfa <token>] [-gdpr] teamname[.slack.com] email [password]\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [-d|--debug] [-m|--mfa <token>] [-g|--gdpr] teamname[.slack.com] email [password]\n\n", os.Args[0])
 		pflag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -80,6 +80,8 @@ func fetchCredentials(ctx context.Context, team, email, password, mfa string, wa
 	var allocatorOpts []chromedp.ExecAllocatorOption
 	if showBrowser {
 		allocatorOpts = append(allocatorOpts, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
+	} else {
+		allocatorOpts = append(allocatorOpts, chromedp.Headless)
 	}
 	if chromePath != "" {
 		allocatorOpts = append(allocatorOpts, chromedp.ExecPath(chromePath))
