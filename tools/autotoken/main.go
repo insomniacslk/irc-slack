@@ -132,11 +132,11 @@ func submit(ctx context.Context, urlstr, selEmail, email, selPassword, password,
 	// submit MFA code if specified
 	if mfa != "" {
 		log.Printf("Sending MFA code")
-		selMFA := `//input[@class="auth_code"]`
 		mfaTasks := chromedp.Tasks{
-			chromedp.WaitVisible(".auth_code"),
-			chromedp.SendKeys(selMFA, mfa),
-			chromedp.Submit(selMFA),
+			chromedp.WaitVisible(".two_factor_input_item > input"),
+			chromedp.Click(".two_factor_input_item > input"),
+			chromedp.SendKeys(".two_factor_input_item > input", mfa),
+			//chromedp.Submit(selMFA),
 		}
 		if err := chromedp.Run(ctx, mfaTasks); err != nil {
 			return "", "", fmt.Errorf("failed to send MFA code: %w", err)
