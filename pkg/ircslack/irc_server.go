@@ -631,13 +631,15 @@ func IrcAuthenticateHandler(ctx *IrcContext, prefix, cmd string, args []string, 
 	}
 	if len(args[0]) != 400 || args[0] == "+" {
 		// Decode RFC4616 PLAIN SASL message
-		plain,_ := base64.StdEncoding.DecodeString(ctx.AuthBase64)
-		split := strings.Split(string(plain),string(0))
+		plain, _ := base64.StdEncoding.DecodeString(ctx.AuthBase64)
+		split := strings.Split(string(plain), string(0))
 		// Is authzid RealName? Does this even matter since we're about to change it?
 		ctx.RealName = split[0]
 		ctx.OrigName = split[1]
 		ctx.SlackAPIKey = split[2]
-		if ctx.RealName == "" { ctx.RealName = ctx.OrigName}
+		if ctx.RealName == "" {
+			ctx.RealName = ctx.OrigName
+		}
 		ctx.FileHandler.SlackAPIKey = ctx.SlackAPIKey
 		// If we're ready, connect
 		if ctx.SlackClient == nil && ctx.RealName != "" && ctx.OrigName != "" {
@@ -646,7 +648,7 @@ func IrcAuthenticateHandler(ctx *IrcContext, prefix, cmd string, args []string, 
 				// close the IRC connection to the client
 				ctx.Conn.Close()
 			}
-		}	
+		}
 		ctx.IsAuthenticating = false
 	}
 }
