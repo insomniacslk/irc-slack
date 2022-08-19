@@ -101,7 +101,7 @@ func (c *Channel) IsPublicChannel() bool {
 
 // IsPrivateChannel returns true if the channel is private.
 func (c *Channel) IsPrivateChannel() bool {
-	return c.IsGroup && c.IsPrivate
+	return (c.IsGroup||c.IsChannel) && c.IsPrivate
 }
 
 // IsMP returns true if it is a multi-party conversation.
