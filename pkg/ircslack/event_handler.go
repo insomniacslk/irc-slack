@@ -160,7 +160,7 @@ func getConversationDetails(
 		parent := message.Messages[0]
 		// If the timestamps are not equal, we're looking for a threaded message
 		if parent.Timestamp != timestamp {
-			msgs, _, _, err := ctx.SlackClient.GetConversationReplies(&slack.GetConversationRepliesParameters{ ChannelID: channelID, Timestamp: parent.Timestamp })
+			msgs, _, _, err := ctx.SlackClient.GetConversationReplies(&slack.GetConversationRepliesParameters{ChannelID: channelID, Timestamp: parent.Timestamp})
 			if err == nil {
 				for _, msg := range msgs {
 					if msg.Timestamp == timestamp {
@@ -170,7 +170,7 @@ func getConversationDetails(
 				}
 			}
 			// TODO: Always find the message, or return better fallback
-			log.Warningf("Did not find threaded message with timestamp %v from %v", timestamp, parent);
+			log.Warningf("Did not find threaded message with timestamp %v from %v", timestamp, parent)
 		}
 		channame := resolveChannelName(ctx, channelID, "")
 		return parent, nil, channame
@@ -376,7 +376,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 				name = user.Name
 			}
 			msg, err, channame := getConversationDetails(ctx, ev.Item.Channel, ev.Item.Timestamp)
-			
+
 			if err != nil {
 				fmt.Printf("could not get Conversation details %s", err)
 				continue

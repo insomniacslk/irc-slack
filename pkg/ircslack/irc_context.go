@@ -99,9 +99,9 @@ func (ic *IrcContext) Start() {
 				if message.TargetTs != "" {
 					opts = append(opts, slack.MsgOptionTS(message.TargetTs))
 					if target[1] == ChannelPrefixThread[0] {
-						idx := strings.Index(target,message.TargetTs)
+						idx := strings.Index(target, message.TargetTs)
 						// strip the prefixes and the '-timestamp'
-						target = target[2:idx-1]
+						target = target[2 : idx-1]
 					}
 				}
 				if _, _, err := ic.SlackClient.PostMessage(target, opts...); err != nil {
