@@ -157,6 +157,17 @@ func getConversationDetails(
 		return slack.Message{}, err
 	}
 	if len(message.Messages) > 0 {
+		// If the timestamps are not equal, we're looking for a threaded message
+		if message.Messages[0].Timestamp != timestamp {
+			msgs, _, _, err := ctx.SlackClient.GetConversationReplies(&slack.GetConversationRepliesParameters{ ChannelID: channelID, Timestamp: message.Messages[0].Timestamp })
+			if err == nil {
+				for _, msg := range msgs {
+					if msg.Timestamp == timestamp { return msg, nil }
+				}
+			}
+			// TODO: Always find the message, or return better fallback
+			log.Warningf("Did not find threaded message with timestamp %v from %v", timestamp, message.Messages[0]);
+		}
 		return message.Messages[0], nil
 	}
 	return slack.Message{}, fmt.Errorf("No such message found")
