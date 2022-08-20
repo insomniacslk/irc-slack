@@ -146,7 +146,7 @@ func getConversationDetails(
 	ctx *IrcContext,
 	channelID string,
 	timestamp string,
-) (slack.Message, error) {
+) (slack.Message, error, string) {
 	message, err := ctx.SlackClient.GetConversationHistory(&slack.GetConversationHistoryParameters{
 		ChannelID: channelID,
 		Latest:    timestamp,
@@ -154,23 +154,28 @@ func getConversationDetails(
 		Inclusive: true,
 	})
 	if err != nil {
-		return slack.Message{}, err
+		return slack.Message{}, err, ""
 	}
 	if len(message.Messages) > 0 {
+		parent := message.Messages[0]
 		// If the timestamps are not equal, we're looking for a threaded message
-		if message.Messages[0].Timestamp != timestamp {
-			msgs, _, _, err := ctx.SlackClient.GetConversationReplies(&slack.GetConversationRepliesParameters{ ChannelID: channelID, Timestamp: message.Messages[0].Timestamp })
+		if parent.Timestamp != timestamp {
+			msgs, _, _, err := ctx.SlackClient.GetConversationReplies(&slack.GetConversationRepliesParameters{ ChannelID: channelID, Timestamp: parent.Timestamp })
 			if err == nil {
 				for _, msg := range msgs {
-					if msg.Timestamp == timestamp { return msg, nil }
+					if msg.Timestamp == timestamp {
+						channame := resolveChannelName(ctx, channelID, parent.Timestamp)
+						return msg, nil, channame
+					}
 				}
 			}
 			// TODO: Always find the message, or return better fallback
-			log.Warningf("Did not find threaded message with timestamp %v from %v", timestamp, message.Messages[0]);
+			log.Warningf("Did not find threaded message with timestamp %v from %v", timestamp, parent);
 		}
-		return message.Messages[0], nil
+		channame := resolveChannelName(ctx, channelID, "")
+		return parent, nil, channame
 	}
-	return slack.Message{}, fmt.Errorf("No such message found")
+	return slack.Message{}, fmt.Errorf("No such message found"), ""
 }
 
 func replacePermalinkWithText(ctx *IrcContext, text string) string {
@@ -180,7 +185,7 @@ func replacePermalinkWithText(ctx *IrcContext, text string) string {
 	}
 	channel := matches[1]
 	timestamp := matches[2] + "." + matches[3]
-	message, err := getConversationDetails(ctx, channel, timestamp)
+	message, err, _ := getConversationDetails(ctx, channel, timestamp)
 	if err != nil {
 		log.Printf("could not get message details from permalink %s %s %s %v", matches[0], channel, timestamp, err)
 		return text
@@ -278,7 +283,7 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			switch message.SubType {
 			case "message_changed":
 				// https://api.slack.com/events/message/message_changed
-				editedMessage, err := getConversationDetails(ctx, message.Channel, message.Timestamp)
+				editedMessage, err, _ := getConversationDetails(ctx, message.Channel, message.Timestamp)
 				if err != nil {
 					fmt.Printf("could not get changed conversation details %s", err)
 					continue
@@ -362,7 +367,6 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			// and slack.MemberLeftChannelEvent.
 		case *slack.ReactionAddedEvent:
 			// https://api.slack.com/events/reaction_added
-			channame := resolveChannelName(ctx, ev.Item.Channel, "")
 			user := ctx.GetUserInfo(ev.User)
 			name := ""
 			if user == nil {
@@ -371,7 +375,8 @@ func eventHandler(ctx *IrcContext, rtm *slack.RTM) {
 			} else {
 				name = user.Name
 			}
-			msg, err := getConversationDetails(ctx, ev.Item.Channel, ev.Item.Timestamp)
+			msg, err, channame := getConversationDetails(ctx, ev.Item.Channel, ev.Item.Timestamp)
+			
 			if err != nil {
 				fmt.Printf("could not get Conversation details %s", err)
 				continue
