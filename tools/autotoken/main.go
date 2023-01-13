@@ -15,49 +15,31 @@ import (
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/spf13/pflag"
-	"golang.org/x/term"
 )
 
 var (
-	flagDebug          = pflag.BoolP("debug", "d", false, "Enable debug log")
-	flagShowBrowser    = pflag.BoolP("show-browser", "b", false, "show browser, useful for debugging")
-	flagChromePath     = pflag.StringP("chrome-path", "c", "", "Custom path for chrome browser")
-	flagMFA            = pflag.StringP("mfa", "m", "", "Provide a multi-factor authentication token (necessary if MFA is enabled on your account)")
-	flagWaitGDPRNotice = pflag.BoolP("gdpr", "g", false, "Wait for Slack's GDPR notice pop-up before inserting username and password. Use this to work around login failures")
-	flagTimeout        = pflag.UintP("timeout", "t", 30, "Timeout in seconds")
+	flagDebug       = pflag.BoolP("debug", "d", false, "Enable debug log")
+	flagShowBrowser = pflag.BoolP("show-browser", "b", false, "show browser, useful for debugging")
+	flagChromePath  = pflag.StringP("chrome-path", "c", "", "Custom path for chrome browser")
+	flagTimeout     = pflag.DurationP("timeout", "t", 5*time.Minute, "Timeout")
 )
 
 func main() {
 	usage := func() {
 		fmt.Fprintf(os.Stderr, "autotoken: log into slack team and get token and cookie.\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [-d|--debug] [-m|--mfa <token>] [-g|--gdpr] teamname[.slack.com] email [password]\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [-d|--debug] [-m|--mfa <token>] [-g|--gdpr] teamname[.slack.com]\n\n", os.Args[0])
 		pflag.PrintDefaults()
 		os.Exit(1)
 	}
 	pflag.Usage = usage
 	pflag.Parse()
-	if len(pflag.Args()) < 2 {
+	if len(pflag.Args()) < 1 {
 		usage()
 	}
 	team := pflag.Arg(0)
 
-	email := pflag.Arg(1)
-	var password string
-	if len(pflag.Args()) < 3 {
-		// get password via terminal
-		fmt.Fprintf(os.Stderr, "Enter your Slack password for user %s on team %s: ", email, team)
-		pbytes, err := term.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			log.Fatalf("Failed to read password: %v", err)
-		}
-		fmt.Println()
-		password = string(pbytes)
-	} else {
-		password = pflag.Arg(2)
-	}
-
-	timeout := time.Duration(*flagTimeout) * time.Second
-	token, cookie, err := fetchCredentials(context.TODO(), team, email, password, *flagMFA, *flagWaitGDPRNotice, timeout, *flagShowBrowser, *flagDebug, *flagChromePath)
+	timeout := *flagTimeout
+	token, cookie, err := fetchCredentials(context.TODO(), team, timeout, *flagDebug, *flagChromePath)
 	if err != nil {
 		log.Fatalf("Failed to fetch credentials for team `%s`: %v", team, err)
 	}
@@ -66,23 +48,17 @@ func main() {
 }
 
 // fetchCredentials fetches Slack token and cookie for a given team.
-func fetchCredentials(ctx context.Context, team, email, password, mfa string, waitGDPRNotice bool, timeout time.Duration, showBrowser, doDebug bool, chromePath string) (string, string, error) {
+func fetchCredentials(ctx context.Context, team string, timeout time.Duration, doDebug bool, chromePath string) (string, string, error) {
 	if !strings.HasSuffix(team, ".slack.com") {
 		team += ".slack.com"
 	}
-	teamURL := "https://" + team
 
 	var cancel func()
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// show browser
-	var allocatorOpts []chromedp.ExecAllocatorOption
-	if showBrowser {
-		allocatorOpts = append(allocatorOpts, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
-	} else {
-		allocatorOpts = append(allocatorOpts, chromedp.Headless)
-	}
+	allocatorOpts := append([]chromedp.ExecAllocatorOption{}, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
 	if chromePath != "" {
 		allocatorOpts = append(allocatorOpts, chromedp.ExecPath(chromePath))
 	}
@@ -97,60 +73,18 @@ func fetchCredentials(ctx context.Context, team, email, password, mfa string, wa
 	ctx, cancel = chromedp.NewContext(ctx, opts...)
 	defer cancel()
 
-	fmt.Fprintf(os.Stderr, "Fetching token and cookie for %s on %s\n", email, team)
+	fmt.Fprintf(os.Stderr, "Fetching token and cookie for %s \n", team)
 	// run chromedp tasks
-	return submit(ctx, teamURL, `//input[@id="email"]`, email, `//input[@id="password"]`, password, mfa, waitGDPRNotice)
-}
-
-// submit authenticates through Slack and returns token and cookie, or an error.
-func submit(ctx context.Context, urlstr, selEmail, email, selPassword, password, mfa string, waitGDPRNotice bool) (string, string, error) {
-	tasks := chromedp.Tasks{
-		chromedp.Navigate(urlstr),
-	}
-	if waitGDPRNotice {
-		tasks = append(tasks,
-			chromedp.WaitVisible(`//*[@id="onetrust-pc-btn-handler"]`),
-			// give it some time to load the JS and finish the graphical transition
-			chromedp.Sleep(2*time.Second),
-			chromedp.Click(`//*[@id="onetrust-pc-btn-handler"]`),
-			chromedp.WaitVisible(`//*[@class="save-preference-btn-handler onetrust-close-btn-handler"]`),
-			// give it some time to load the JS and finish the graphical transition
-			chromedp.Sleep(2*time.Second),
-			chromedp.Click(`//*[@class="save-preference-btn-handler onetrust-close-btn-handler"]`),
-		)
-	}
-	tasks = append(tasks,
-		chromedp.WaitVisible(selEmail),
-		chromedp.SendKeys(selEmail, email),
-		chromedp.WaitVisible(selPassword),
-		chromedp.SendKeys(selPassword, password),
-		chromedp.Submit(selPassword),
-	)
-	if err := chromedp.Run(ctx, tasks); err != nil {
-		return "", "", fmt.Errorf("failed to send credentials: %w", err)
-	}
-	// submit MFA code if specified
-	if mfa != "" {
-		log.Printf("Sending MFA code")
-		mfaTasks := chromedp.Tasks{
-			chromedp.WaitVisible(".two_factor_input_item > input"),
-			chromedp.Click(".two_factor_input_item > input"),
-			chromedp.SendKeys(".two_factor_input_item > input", mfa),
-			//chromedp.Submit(selMFA),
-		}
-		if err := chromedp.Run(ctx, mfaTasks); err != nil {
-			return "", "", fmt.Errorf("failed to send MFA code: %w", err)
-		}
-	}
-
-	return extractTokenAndCookie(ctx)
+	return extractTokenAndCookie(ctx, team)
 }
 
 // extractTokenAndCookie extracts Slack token and cookie from an existing
 // context.
-func extractTokenAndCookie(ctx context.Context) (string, string, error) {
+func extractTokenAndCookie(ctx context.Context, team string) (string, string, error) {
+	teamURL := "https://" + team
 	var token, cookie string
 	tasks := chromedp.Tasks{
+		chromedp.Navigate(teamURL),
 		chromedp.WaitVisible(".p-workspace__primary_view_contents"),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			v, exp, err := runtime.Evaluate(`q=JSON.parse(localStorage.localConfig_v2)["teams"]; q[Object.keys(q)[0]]["token"]`).Do(ctx)
