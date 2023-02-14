@@ -77,7 +77,7 @@ func (c *Channels) FetchByIDs(client *slack.Client, skipCache bool, channelIDs .
 				return nil, fmt.Errorf("Channels.FetchByIDs: exceeded the maximum number of attempts (%d) with the Slack API", MaxSlackAPIAttempts)
 			}
 			log.Debugf("Fetching %d channels of %d, attempt %d of %d", len(toRetrieve), len(channelIDs), attempt+1, MaxSlackAPIAttempts)
-			slackChannel, err := client.GetConversationInfo(toRetrieve[i], true)
+			slackChannel, err := client.GetConversationInfo(&slack.GetConversationInfoInput{ChannelID: toRetrieve[i], IncludeLocale: true, IncludeNumMembers: true})
 			if err != nil {
 				if rlErr, ok := err.(*slack.RateLimitedError); ok {
 					// we were rate-limited. Let's wait the recommended delay

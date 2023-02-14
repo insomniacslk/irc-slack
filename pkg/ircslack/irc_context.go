@@ -156,7 +156,7 @@ func (ic IrcContext) GetConversationInfo(conversation string) (*slack.Channel, e
 	if ok {
 		return c, nil
 	}
-	c, err := ic.SlackClient.GetConversationInfo(conversation, false)
+	c, err := ic.SlackClient.GetConversationInfo(&slack.GetConversationInfoInput{ChannelID: conversation, IncludeLocale: true, IncludeNumMembers: true})
 	if err != nil {
 		return c, err
 	}
