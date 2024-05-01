@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/cdproto/storage"
 	"github.com/chromedp/chromedp"
 	"github.com/spf13/pflag"
 )
@@ -58,7 +58,12 @@ func fetchCredentials(ctx context.Context, team string, timeout time.Duration, d
 	defer cancel()
 
 	// show browser
-	allocatorOpts := append([]chromedp.ExecAllocatorOption{}, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
+	var allocatorOpts []chromedp.ExecAllocatorOption
+	if *flagShowBrowser {
+		allocatorOpts = append(allocatorOpts, chromedp.NoFirstRun, chromedp.NoDefaultBrowserCheck)
+	} else {
+		allocatorOpts = append(allocatorOpts, chromedp.Headless)
+	}
 	if chromePath != "" {
 		allocatorOpts = append(allocatorOpts, chromedp.ExecPath(chromePath))
 	}
@@ -100,7 +105,7 @@ func extractTokenAndCookie(ctx context.Context, team string) (string, string, er
 			return nil
 		}),
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			cookies, err := network.GetAllCookies().Do(ctx)
+			cookies, err := storage.GetCookies().Do(ctx)
 			if err != nil {
 				return err
 			}
