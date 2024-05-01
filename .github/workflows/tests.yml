@@ -12,6 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          fetch-depth: 2
           # clone in the gopath
           path: src/github.com/${{ github.repository }}
       - uses: actions/setup-go@v2
@@ -32,6 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          fetch-depth: 2
           # clone in the gopath
           path: src/github.com/${{ github.repository }}
       - uses: actions/setup-go@v2

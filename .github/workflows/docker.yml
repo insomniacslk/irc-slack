@@ -14,6 +14,8 @@ jobs:
       DOCKER_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
       - name: Login to Docker hub
         run: docker login -u $DOCKER_USER -p $DOCKER_PASS
       - name: Build image
