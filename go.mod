@@ -2,7 +2,7 @@ module github.com/insomniacslk/irc-slack
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20241022234722-4d5d5faf59fb
-	github.com/chromedp/chromedp v0.11.1
+	github.com/chromedp/chromedp v0.11.2
 	github.com/coredhcp/coredhcp v0.0.0-20240908184240-576af8676ffa
 	github.com/sirupsen/logrus v1.9.3
 	github.com/slack-go/slack v0.15.0
