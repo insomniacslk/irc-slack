@@ -1,0 +1,7 @@
+services:
+  irc-slack:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 6666:6666

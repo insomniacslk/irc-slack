@@ -1,7 +1,7 @@
 ############################
 # STEP 1 build executable binary
 ############################
-FROM golang:1.16-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 LABEL BUILD="docker build -t insomniacslk/irc-slack -f Dockerfile ."
 LABEL RUN="docker run --rm -p 6666:6666 -it insomniacslk/irc-slack"
