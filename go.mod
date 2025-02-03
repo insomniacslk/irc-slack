@@ -8,7 +8,7 @@ require (
 	github.com/coredhcp/coredhcp v0.0.0-20240908184240-576af8676ffa
 	github.com/sirupsen/logrus v1.9.3
 	github.com/slack-go/slack v0.15.0
-	github.com/spf13/pflag v1.0.6-0.20201009195203-85dd5c8bc61c
+	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
 )
 
