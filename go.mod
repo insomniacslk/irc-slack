@@ -6,7 +6,7 @@ toolchain go1.24.2
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20250420205042-3f8c33ccbdec
-	github.com/chromedp/chromedp v0.13.6
+	github.com/chromedp/chromedp v0.13.7
 	github.com/coredhcp/coredhcp v0.0.0-20250319113400-6d3dd835d914
 	github.com/sirupsen/logrus v1.9.3
 	github.com/slack-go/slack v0.16.0
@@ -24,9 +24,7 @@ require (
 	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/josharian/intern v1.0.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
-	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
