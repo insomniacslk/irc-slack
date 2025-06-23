@@ -117,7 +117,7 @@ func handleSlackAuth(w http.ResponseWriter, r *http.Request) {
 		httpStatus(w, r, 500, "")
 		return
 	}
-	httpStatus(w, r, 200, string(indented))
+	httpStatus(w, r, 200, "%s", string(indented))
 }
 
 func main() {
