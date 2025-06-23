@@ -188,13 +188,13 @@ func IrcSendChanInfoAfterJoinCustom(ctx *IrcContext, chanName, chanID, topic str
 // joinChannel will join the channel with the given ID, name and topic, and send back a
 // response to the IRC client
 func joinChannel(ctx *IrcContext, ch *Channel) error {
-	log.Infof(fmt.Sprintf("%s topic=%s members=%d", ch.IRCName(), ch.Purpose.Value, ch.NumMembers))
+	log.Infof("%s topic=%s members=%d", ch.IRCName(), ch.Purpose.Value, ch.NumMembers)
 	// the channels are already joined, notify the IRC client of their
 	// existence
 	members, err := ChannelMembers(ctx, ch.ID)
 	if err != nil {
 		jErr := fmt.Errorf("Failed to fetch users in channel `%s (channel ID: %s): %v", ch.Name, ch.ID, err)
-		ctx.SendUnknownError(jErr.Error())
+		ctx.SendUnknownError("%s", jErr.Error())
 		return jErr
 	}
 	go IrcSendChanInfoAfterJoin(ctx, ch, members)
@@ -401,7 +401,7 @@ func (hc httpClient) Do(req *http.Request) (*http.Response, error) {
 
 // passwordToTokenAndCookie parses the password specified by the user into a
 // Slack token and optionally a cookie Auth cookies can be specified by
-//appending a "|" symbol and the base64-encoded auth cookie to the Slack token.
+// appending a "|" symbol and the base64-encoded auth cookie to the Slack token.
 func passwordToTokenAndCookie(p string) (string, string, error) {
 	parts := strings.Split(p, "|")
 
@@ -842,7 +842,7 @@ func IrcNamesHandler(ctx *IrcContext, prefix, cmd string, args []string, trailin
 	members, err := ChannelMembers(ctx, ch.ID)
 	if err != nil {
 		jErr := fmt.Errorf("Failed to fetch users in channel `%s (channel ID: %s): %v", ch.Name, ch.ID, err)
-		ctx.SendUnknownError(jErr.Error())
+		ctx.SendUnknownError("%s", jErr.Error())
 		return
 	}
 	memberNames := make([]string, 0, len(members))
