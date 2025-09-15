@@ -8,7 +8,7 @@ on:
 
 jobs:
   docker_publish:
-    runs-on: 1.23
+    runs-on: 1.25
     env:
       DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKER_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
