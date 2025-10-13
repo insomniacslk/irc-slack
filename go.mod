@@ -4,7 +4,7 @@ go 1.25
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20250803210736-d308e07a266d
-	github.com/chromedp/chromedp v0.14.1
+	github.com/chromedp/chromedp v0.14.2
 	github.com/coredhcp/coredhcp v0.0.0-20250806070228-f7e98e4e350b
 	github.com/sirupsen/logrus v1.9.3
 	github.com/slack-go/slack v0.17.3
