@@ -1,6 +1,6 @@
 module github.com/insomniacslk/irc-slack
 
-go 1.25
+go 1.26.0
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20250803210736-d308e07a266d
