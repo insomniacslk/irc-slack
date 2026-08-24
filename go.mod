@@ -7,7 +7,7 @@ require (
 	github.com/chromedp/chromedp v0.16.0
 	github.com/coredhcp/coredhcp v0.0.0-20260217182248-a0841cb3038f
 	github.com/sirupsen/logrus v1.9.4
-	github.com/slack-go/slack v0.27.0
+	github.com/slack-go/slack v0.29.0
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 )
