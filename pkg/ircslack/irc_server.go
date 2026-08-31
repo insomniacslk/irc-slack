@@ -1,6 +1,7 @@
 package ircslack
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"html"
@@ -28,6 +29,7 @@ type IrcCommandHandler func(*IrcContext, string, string, []string, string)
 
 // IrcCommandHandlers maps each IRC command to its handler function
 var IrcCommandHandlers = map[string]IrcCommandHandler{
+	"AUTHENTICATE": IrcAuthenticateHandler,
 	"CAP":     IrcCapHandler,
 	"NICK":    IrcNickHandler,
 	"USER":    IrcUserHandler,
@@ -587,6 +589,67 @@ func IrcPassHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing
 			// close the IRC connection to the client
 			ctx.Conn.Close()
 		}
+	}
+}
+
+// IrcAuthenticateHandler is called when an AUTHENTICATE command is sent
+func IrcAuthenticateHandler(ctx *IrcContext, prefix, cmd string, args []string, trailing string) {
+	if len(args) != 1 {
+		log.Warningf("Invalid AUTHENTICATE command args: %v %v", args, trailing)
+		return
+	}
+	// Check mechanism
+	if !ctx.IsAuthenticating {
+		if args[0] != "PLAIN" {
+			log.Warningf("Un-implemented mechanism for AUTHENTICATE: %v", args[0])
+			if err := SendIrcNumeric(ctx, 904, "", "Unknown mechanism"); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
+			return
+		}
+		if len(ctx.SlackAPIKey) > 0 {
+			if err := SendIrcNumeric(ctx, 907, "", "Already authenticated"); err != nil {
+				log.Warningf("Failed to send IRC message: %v", err)
+			}
+		}
+		// Ask for the data
+		if _, err := ctx.Conn.Write([]byte("AUTHENTICATE +\r\n")); err != nil {
+			log.Warningf("Failed to send IRC message: %v", err)
+		}
+		ctx.IsAuthenticating = true
+		return
+	}
+
+	if args[0] == "*" {
+		ctx.IsAuthenticating = false
+		if err := SendIrcNumeric(ctx, 906, "", "Aborted authentication"); err != nil {
+			log.Warningf("Failed to send IRC message: %v", err)
+		}
+	}
+	if args[0] != "+" {
+		ctx.AuthBase64 += args[0]
+	}
+	if len(args[0]) != 400 || args[0] == "+" {
+		// Decode RFC4616 PLAIN SASL message
+		plain, _ := base64.StdEncoding.DecodeString(ctx.AuthBase64)
+		split := strings.Split(string(plain), string(0))
+		// Is authzid RealName? Does this even matter since we're about to change it?
+		ctx.RealName = split[0]
+		ctx.OrigName = split[1]
+		ctx.SlackAPIKey = split[2]
+		if ctx.RealName == "" {
+			ctx.RealName = ctx.OrigName
+		}
+		ctx.FileHandler.SlackAPIKey = ctx.SlackAPIKey
+		// If we're ready, connect
+		if ctx.SlackClient == nil && ctx.RealName != "" && ctx.OrigName != "" {
+			if err := connectToSlack(ctx); err != nil {
+				log.Warningf("Cannot connect to Slack: %v", err)
+				// close the IRC connection to the client
+				ctx.Conn.Close()
+			}
+		}
+		ctx.IsAuthenticating = false
 	}
 }
 

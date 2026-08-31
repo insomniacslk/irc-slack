@@ -29,6 +29,8 @@ type IrcContext struct {
 	SlackDebug        bool
 	SlackConnected    bool
 	ServerName        string
+	IsAuthenticating  bool
+	AuthBase64        string
 	Channels          *Channels
 	Users             *Users
 	ChunkSize         int
