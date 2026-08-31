@@ -98,9 +98,14 @@ func (ic *IrcContext) Start() {
 				opts = append(opts, slack.MsgOptionText(strings.TrimSpace(text), false))
 				if message.TargetTs != "" {
 					opts = append(opts, slack.MsgOptionTS(message.TargetTs))
+					if target[1] == ChannelPrefixThread[0] {
+						idx := strings.Index(target, message.TargetTs)
+						// strip the prefixes and the '-timestamp'
+						target = target[2 : idx-1]
+					}
 				}
 				if _, _, err := ic.SlackClient.PostMessage(target, opts...); err != nil {
-					log.Warningf("Failed to post message to Slack to target %s: %v", target, err)
+					log.Warningf("Failed to post message to Slack to target %s: %v (targetTs: %v)", target, err, message.TargetTs)
 				}
 			}
 			textBuffer = make(map[string]string)
