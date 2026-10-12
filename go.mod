@@ -3,7 +3,7 @@ module github.com/insomniacslk/irc-slack
 go 1.26.0
 
 require (
-	github.com/chromedp/cdproto v0.0.0-20260714215040-dc233986426f
+	github.com/chromedp/cdproto v0.157.9
 	github.com/chromedp/chromedp v0.16.0
 	github.com/coredhcp/coredhcp v0.0.0-20260217182248-a0841cb3038f
 	github.com/sirupsen/logrus v1.10.1
@@ -14,7 +14,6 @@ require (
 
 require (
 	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb // indirect
-	github.com/chromedp/sysutil v1.1.0 // indirect
 	github.com/go-json-experiment/json v0.0.0-20260623181947-01eb4420fa68 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
