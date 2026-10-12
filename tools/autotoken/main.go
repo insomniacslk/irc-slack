@@ -88,29 +88,31 @@ func fetchCredentials(ctx context.Context, team string, timeout time.Duration, d
 func extractTokenAndCookie(ctx context.Context, team string) (string, string, error) {
 	teamURL := "https://" + team
 	var token, cookie string
-	tasks := chromedp.Tasks{
+	err := chromedp.Do(ctx,
 		chromedp.Navigate(teamURL),
 		chromedp.WaitVisible(".p-workspace__primary_view_contents"),
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			v, exp, err := runtime.Evaluate(`q=JSON.parse(localStorage.localConfig_v2)["teams"]; q[Object.keys(q)[0]]["token"]`).Do(ctx)
+		chromedp.Func(func(ctx context.Context, _ *chromedp.Target) error {
+			res, err := chromedp.Call(ctx, runtime.Evaluate, runtime.EvaluateParams{
+				Expression: `q=JSON.parse(localStorage.localConfig_v2)["teams"]; q[Object.keys(q)[0]]["token"]`,
+			})
 			if err != nil {
 				return err
 			}
-			if exp != nil {
-				return exp
+			if res.ExceptionDetails != nil {
+				return fmt.Errorf("failed to evaluate token expression: %s", res.ExceptionDetails.Text)
 			}
-			if err := json.Unmarshal(v.Value, &token); err != nil {
+			if err := json.Unmarshal(res.Result.Value, &token); err != nil {
 				return fmt.Errorf("failed to unmarshal token: %v", err)
 			}
 			return nil
 		}),
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			cookies, err := storage.GetCookies().Do(ctx)
+		chromedp.Func(func(ctx context.Context, _ *chromedp.Target) error {
+			res, err := chromedp.Call(ctx, storage.GetCookies, storage.GetCookiesParams{})
 			if err != nil {
 				return err
 			}
 
-			for _, c := range cookies {
+			for _, c := range res.Cookies {
 				if c.Name == "d" {
 					cookie = fmt.Sprintf("d=%s;", c.Value)
 				}
@@ -118,8 +120,8 @@ func extractTokenAndCookie(ctx context.Context, team string) (string, string, er
 
 			return nil
 		}),
-	}
-	if err := chromedp.Run(ctx, tasks); err != nil {
+	)
+	if err != nil {
 		return "", "", err
 	}
 	return token, cookie, nil
