@@ -1,7 +1,7 @@
 github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb h1:aZTKxMminKeQWHtzJBbV8TttfTxzdJ+7iEJFE6FmUzg=
 github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb/go.mod h1:xzXc1S/L+64uglB3pw54o8kqyM6KFYpTeC9Q6+qZIu8=
-github.com/chromedp/cdproto v0.158.0 h1:8Yz/5ozkqe88P6/y9N3ippTww/cmZbiC2G9BPZgDBDk=
-github.com/chromedp/cdproto v0.158.0/go.mod h1:h68JaIuFr9o3yiayxEYhBdvaxgYO3shDrPSYhNlyfu0=
+github.com/chromedp/cdproto v0.158.4 h1:5t2VGQGp2OuaGPnKIpBikPplESrGMjQMQ4d+7e+eilk=
+github.com/chromedp/cdproto v0.158.4/go.mod h1:h68JaIuFr9o3yiayxEYhBdvaxgYO3shDrPSYhNlyfu0=
 github.com/chromedp/chromedp v0.21.0 h1:nVHgS2LHyhZJ1l3BWRbG2eFIFYiJMnvkJbELbd8WBoQ=
 github.com/chromedp/chromedp v0.21.0/go.mod h1:6z1Y5FdKUxRzxx2qcC5h1xjaBJrSWrZp1mjgITfNZig=
 github.com/coredhcp/coredhcp v0.0.0-20260217182248-a0841cb3038f h1:Bj+yhDYB9fypuXEJimRf9iRqHenZ/lqR7OPJ8e4GGQs=
