@@ -33,7 +33,7 @@ You can also [run it with Docker](#run-it-with-docker).
 | --- | --- | --- | --- | --- |
 | from me | works | works | doesn't work ([#168](https://github.com/insomniacslk/irc-slack/issues/168)) | works |
 | to me | works | works | works | works |
-| thread from me | doesn't work ([#168](https://github.com/insomniacslk/irc-slack/issues/168)) | doesn't work ([#168](https://github.com/insomniacslk/irc-slack/issues/168)) | untested | doesn't work ([#166](https://github.com/insomniacslk/irc-slack/issues/166)) |
+| thread from me | works | works | untested | doesn't work ([#166](https://github.com/insomniacslk/irc-slack/issues/166)) |
 | thread to me | works | works | untested | works but sends in the IM chat ([#167](https://github.com/insomniacslk/irc-slack/issues/167)) |
 
 ## Encryption
